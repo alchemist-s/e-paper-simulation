@@ -11,8 +11,8 @@ print(f"Python version: {sys.version}")
 print(f"Current working directory: {os.getcwd()}")
 print(f"Script location: {os.path.dirname(os.path.realpath(__file__))}")
 
-# Check if lib directory exists
-script_dir = os.path.dirname(os.path.realpath(__file__))
+# Check if lib directory exists (go up one level from tests/)
+script_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 libdir = os.path.join(script_dir, "lib")
 print(f"Lib directory path: {libdir}")
 print(f"Lib directory exists: {os.path.exists(libdir)}")

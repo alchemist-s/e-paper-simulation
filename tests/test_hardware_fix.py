@@ -7,8 +7,8 @@ Test script to verify hardware display fix
 import sys
 import os
 
-# Add the lib directory to the path
-script_dir = os.path.dirname(os.path.realpath(__file__))
+# Add the lib directory to the path (go up one level from tests/)
+script_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 libdir = os.path.join(script_dir, "lib")
 sys.path.insert(0, libdir)
 
