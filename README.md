@@ -1,49 +1,150 @@
-﻿# 说明 explain
-Development 分支用于存放用户的提交的修改代码，经验证后，我们将移植到主分支中；非常感谢您对我们的支持</br>
-The Development branch is used to store the modified code submitted by users. After verification, we will migrate it to the main branch. Thank you very much for your support </br>
+# E-Paper Display Controller
 
-# e-Paper  
-waveshare electronics</br>
-![waveshare_logo.png](waveshare_logo.png)
+A Python library for controlling e-paper displays with support for both hardware and simulation modes. This project provides a clean, object-oriented interface for working with various e-paper display types.
 
-# 说明 explain
-这个开发分支用于存放用户的提交的修改代码，经验证后，我们将移植到主分支中；非常感谢您对我们的支持</br>
-This development branch is used to store the changes committed by users. After verification, we will migrate them to the main branch. Thank you very much for your support</br>
+## Features
 
-随着屏幕越来越多，程序包也越来越大，用户移植相对比较复杂；因此我们决定在保留原有git路径的基础下，新建一个目录用于保存以后的新屏幕或者老屏幕分离出来的代码。</br>
-With more and more screens and larger packages, user migration is relatively complex. So we decided to create a directory where we could store any new screen or any code that's split from the old one, while keeping the old git path.</br>
+- **Hardware Support**: Direct control of e-paper displays via SPI
+- **Simulation Mode**: Test your code without physical hardware using Tkinter or file output
+- **Modular Design**: Clean separation between display interface and implementations
+- **Cross-Platform**: Works on Raspberry Pi, desktop computers, and other platforms
+- **Flexible**: Easy to extend for new display types
 
-E-paper_Separate_Program 这个文件用于存放每个墨水屏单独的示例代码，用户在使用时仅需在原本的路径下添加 /E-paper_Separate_Program/xxx  (PS: xxx 为对应屏幕名称)</br>
-E-paper_Separate_Program This file is used to store the separate example code for each electronic paper. Users only need to add /E-paper_Separate_Program/xxx (PS: xxx is the corresponding screen name) to the original path.</br>
+## Installation
 
-## 中文:  
-Jetson Nano、Raspberry Pi、Arduino、STM32例程</br>
-* RaspberryPi_JetsonNano  
-    > C</br>
-    > Python </br>
-* Arduino:  
-    > Arduino UNO R3 (最新屏幕无该示例代码)</br>
-    > Arduino UNO R4</br>
-* STM32:  
-    > STM32F103ZET6 </br>
-    
-更多资料请在官网上搜索:  </br>
-http://www.waveshare.net</br>
+1. Clone this repository:
 
+```bash
+git clone <your-repo-url>
+cd e-paper-main
+```
 
-## English:  
-Jetson Nano、Raspberry Pi、Arduino、STM32 Demo:  </br>
-* RaspberryPi_JetsonNano:  
-    > C</br>
-    > Python</br>
-* Arduino:  
-    > Arduino UNO R3 (The latest screen does not have this example code)</br>
-    > Arduino UNO R4 </br>
-* STM32:  
-    > STM32F103ZET6 </br>
-    
-For more information, please search on the official website:   </br>
-https://www.waveshare.com</br>
+2. Install dependencies:
 
+```bash
+pip install -r requirements.txt
+```
 
+## Usage
 
+### Basic Usage
+
+```python
+from lib.display_factory import DisplayFactory
+
+# For hardware mode (requires physical e-paper display)
+from waveshare_epd import epd7in5b_V2
+display = DisplayFactory.create_display(simulate=False, epd_module=epd7in5b_V2)
+
+# For simulation mode
+display = DisplayFactory.create_display(simulate=True, width=800, height=480)
+
+# Initialize and clear display
+display.init()
+display.clear()
+
+# Display images
+from PIL import Image
+image = Image.new('1', (display.width, display.height), 255)
+display.display(image)
+```
+
+### Command Line Usage
+
+```bash
+# Run with hardware display
+python3 main.py
+
+# Run in simulation mode (saves images to files)
+python3 main.py --simulate
+```
+
+## Project Structure
+
+```
+e-paper-main/
+├── lib/                    # Core library files
+│   ├── display_interface.py    # Abstract base class
+│   ├── display_factory.py      # Factory for creating displays
+│   ├── hardware_display.py     # Hardware implementation
+│   └── simulation_display.py   # Simulation implementation
+├── main.py                 # Main demo script
+├── examples/               # Example code
+├── pic/                    # Image assets
+└── setup.py               # Package setup
+```
+
+## Display Modes
+
+### Hardware Mode
+
+- Controls physical e-paper displays
+- Requires appropriate hardware drivers
+- Real-time display updates
+
+### Simulation Mode
+
+- **Tkinter**: Real-time window display (when available)
+- **File Output**: Saves images to `simulation_output/` directory
+- Perfect for testing and development
+
+## Supported Displays
+
+This library is designed to work with various e-paper display types. The current implementation supports:
+
+- 7.5" e-paper displays (tested)
+- Extensible for other sizes and types
+
+## Development
+
+### Adding New Display Types
+
+1. Create a new display class implementing `DisplayInterface`
+2. Add it to the `DisplayFactory`
+3. Update documentation
+
+### Testing
+
+```bash
+# Test in simulation mode
+python3 main.py --simulate
+
+# Check generated images in simulation_output/
+ls simulation_output/
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **ImportError: cannot import name 'ImageTk'**
+
+   - This is normal on systems without Tkinter support
+   - The simulation will automatically fall back to file output
+
+2. **Hardware not detected**
+
+   - Ensure proper SPI configuration
+   - Check hardware connections
+   - Verify driver installation
+
+3. **Permission errors on Raspberry Pi**
+   - Run with appropriate permissions for SPI access
+   - Consider using `sudo` for hardware access
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- Based on Waveshare e-paper display libraries
+- Inspired by the need for better testing and simulation capabilities
