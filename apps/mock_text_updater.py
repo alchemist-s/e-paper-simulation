@@ -87,15 +87,29 @@ class TextUpdater:
         width_bytes = (x_end - x_start) // 8
         height = y_end - y_start
 
-        # Create buffer of the correct size
-        buffer_size = width_bytes * height
-        buf = [0x00] * buffer_size
+        # Create the text image for the region
+        region_image = Image.new("1", (x_end - x_start, height), 255)
+        draw = ImageDraw.Draw(region_image)
 
-        # Create a simple pattern that changes with the counter
-        # This will help us see if partial updates are working
-        pattern = 0xFF if int(text.split()[-1]) % 2 == 0 else 0x00
-        for i in range(buffer_size):
-            buf[i] = pattern
+        # Get text bounding box
+        bbox = draw.textbbox((0, 0), text, font=self.font)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
+
+        # Center the text in the region
+        text_x = (region_image.width - text_width) // 2
+        text_y = (region_image.height - text_height) // 2
+
+        # Draw text
+        draw.text((text_x, text_y), text, font=self.font, fill=0)
+
+        # Convert to buffer
+        img = region_image.convert("1")
+        buf = bytearray(img.tobytes("raw"))
+
+        # Invert the bytes (same as getbuffer does)
+        for i in range(len(buf)):
+            buf[i] ^= 0xFF
 
         return buf
 
