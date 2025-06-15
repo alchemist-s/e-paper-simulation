@@ -62,27 +62,40 @@ class TextUpdater:
 
     def get_text_buffer(self, text):
         """Convert text image to buffer for display_Partial"""
-        # Create full image with text
-        full_image = self.create_text_image(text)
+        # Calculate buffer size based on display_Partial logic
+        x_start = self.text_x
+        x_end = self.text_x + self.text_width
+        y_start = self.text_y
+        y_end = self.text_y + self.text_height
 
-        # Extract only the region we want to update
-        region_image = full_image.crop(
-            (
-                self.text_x,
-                self.text_y,
-                self.text_x + self.text_width,
-                self.text_y + self.text_height,
-            )
-        )
+        # Apply the same boundary adjustments as display_Partial
+        if (
+            (x_start % 8 + x_end % 8 == 8 & x_start % 8 > x_end % 8)
+            | x_start % 8 + x_end % 8
+            == 0 | (x_end - x_start) % 8
+            == 0
+        ):
+            x_start = x_start // 8 * 8
+            x_end = x_end // 8 * 8
+        else:
+            x_start = x_start // 8 * 8
+            if x_end % 8 == 0:
+                x_end = x_end // 8 * 8
+            else:
+                x_end = x_end // 8 * 8 + 1
 
-        # Convert to buffer - we need to handle the buffer conversion manually
-        # since getbuffer expects full display size
-        img = region_image.convert("1")
-        buf = bytearray(img.tobytes("raw"))
+        width_bytes = (x_end - x_start) // 8
+        height = y_end - y_start
 
-        # Invert the bytes (same as getbuffer does)
-        for i in range(len(buf)):
-            buf[i] ^= 0xFF
+        # Create buffer of the correct size
+        buffer_size = width_bytes * height
+        buf = [0x00] * buffer_size
+
+        # Create a simple pattern that changes with the counter
+        # This will help us see if partial updates are working
+        pattern = 0xFF if int(text.split()[-1]) % 2 == 0 else 0x00
+        for i in range(buffer_size):
+            buf[i] = pattern
 
         return buf
 
@@ -138,8 +151,8 @@ def main():
     # Initialize the e-paper display
     try:
         epd = EPD()
-        print("Initializing e-paper display...")
-        epd.init()
+        print("Initializing e-paper display for partial updates...")
+        epd.init_part()  # Use init_part() for partial updates
 
         # Clear the display first
         print("Clearing display...")
