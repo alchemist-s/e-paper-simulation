@@ -42,8 +42,8 @@ class TextUpdater:
 
     def create_text_image(self, text):
         """Create an image with the given text"""
-        # Create image for the text region
-        image = Image.new("1", (self.text_width, self.text_height), 255)
+        # Create full-size image for the display
+        image = Image.new("1", (self.width, self.height), 255)
         draw = ImageDraw.Draw(image)
 
         # Get text bounding box
@@ -51,9 +51,9 @@ class TextUpdater:
         text_width = bbox[2] - bbox[0]
         text_height = bbox[3] - bbox[1]
 
-        # Center the text
-        x = (self.text_width - text_width) // 2
-        y = (self.text_height - text_height) // 2
+        # Center the text within the text region
+        x = self.text_x + (self.text_width - text_width) // 2
+        y = self.text_y + (self.text_height - text_height) // 2
 
         # Draw text
         draw.text((x, y), text, font=self.font, fill=0)
@@ -62,8 +62,29 @@ class TextUpdater:
 
     def get_text_buffer(self, text):
         """Convert text image to buffer for display_Partial"""
-        image = self.create_text_image(text)
-        return self.epd.getbuffer(image)
+        # Create full image with text
+        full_image = self.create_text_image(text)
+
+        # Extract only the region we want to update
+        region_image = full_image.crop(
+            (
+                self.text_x,
+                self.text_y,
+                self.text_x + self.text_width,
+                self.text_y + self.text_height,
+            )
+        )
+
+        # Convert to buffer - we need to handle the buffer conversion manually
+        # since getbuffer expects full display size
+        img = region_image.convert("1")
+        buf = bytearray(img.tobytes("raw"))
+
+        # Invert the bytes (same as getbuffer does)
+        for i in range(len(buf)):
+            buf[i] ^= 0xFF
+
+        return buf
 
     def update_text(self, text):
         """Update the text using display_Partial"""
