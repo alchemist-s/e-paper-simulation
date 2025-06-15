@@ -19,11 +19,16 @@ class HardwareDisplay(DisplayInterface):
     def display(self, main_image: Image.Image, other_image: Image.Image = None):
         """Display images on the screen"""
         if other_image:
+            # Both images provided
             self.epd.display(
                 self.epd.getbuffer(main_image), self.epd.getbuffer(other_image)
             )
         else:
-            self.epd.display(self.epd.getbuffer(main_image))
+            # Only main image provided, create blank red image
+            blank_red = Image.new("1", (self.epd.width, self.epd.height), 255)
+            self.epd.display(
+                self.epd.getbuffer(main_image), self.epd.getbuffer(blank_red)
+            )
 
     def init_fast(self):
         """Initialize for fast mode"""
