@@ -11,11 +11,11 @@ import time
 from PIL import Image, ImageDraw, ImageFont
 
 # Add the lib directory to the path
-script_dir = os.path.dirname(os.path.realpath(__file__))
+script_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 libdir = os.path.join(script_dir, "lib")
 sys.path.insert(0, libdir)
 
-from waveshare_epd import epd7in5b_V2
+from waveshare_epd.epd7in5b_V2 import EPD
 
 
 class TextUpdater:
@@ -116,7 +116,7 @@ def main():
 
     # Initialize the e-paper display
     try:
-        epd = epd7in5b_V2.EPD()
+        epd = EPD()
         print("Initializing e-paper display...")
         epd.init()
 
