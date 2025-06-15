@@ -24,10 +24,11 @@ else:
 
 try:
     from display_factory import DisplayFactory
+    from time_display import TimeDisplay
 
-    logging.info("Successfully imported DisplayFactory")
+    logging.info("Successfully imported DisplayFactory and TimeDisplay")
 except ImportError as e:
-    logging.error(f"Failed to import DisplayFactory: {e}")
+    logging.error(f"Failed to import required modules: {e}")
     logging.error(f"Current sys.path: {sys.path}")
     sys.exit(1)
 
@@ -40,8 +41,14 @@ try:
         action="store_true",
         help="Simulate display using Tkinter real-time window",
     )
+    parser.add_argument(
+        "--clock",
+        action="store_true",
+        help="Show clock display instead of demo",
+    )
     args = parser.parse_args()
     simulate = args.simulate
+    show_clock = args.clock
 
     logging.info("epd7in5b_V2 Demo")
 
@@ -61,37 +68,70 @@ try:
     font24 = ImageFont.truetype(os.path.join(picdir, "Font.ttc"), 24)
     font18 = ImageFont.truetype(os.path.join(picdir, "Font.ttc"), 18)
 
-    # Drawing on the Horizontal image
-    logging.info("1.Drawing on the Horizontal image...")
-    Himage = Image.new(
-        "1", (display.width, display.height), 255
-    )  # 255: clear the frame
-    Other = Image.new("1", (display.width, display.height), 255)  # 255: clear the frame
-    draw_Himage = ImageDraw.Draw(Himage)
-    draw_other = ImageDraw.Draw(Other)
-    draw_Himage.text((10, 0), "hello world", font=font24, fill=0)
-    draw_Himage.text((10, 20), "7.5inch e-Paper B", font=font24, fill=0)
-    draw_Himage.text((150, 0), "微雪电子", font=font24, fill=0)
-    draw_other.line((20, 50, 70, 100), fill=0)
-    draw_other.line((70, 50, 20, 100), fill=0)
-    draw_other.rectangle((20, 50, 70, 100), outline=0)
-    draw_other.line((165, 50, 165, 100), fill=0)
-    draw_Himage.line((140, 75, 190, 75), fill=0)
-    draw_Himage.arc((140, 50, 190, 100), 0, 360, fill=0)
-    draw_Himage.rectangle((80, 50, 130, 100), fill=0)
-    draw_Himage.chord((200, 50, 250, 100), 0, 360, fill=0)
+    # Create TimeDisplay instance
+    time_display = TimeDisplay(font_path=os.path.join(picdir, "Font.ttc"), font_size=72)
 
-    display.display(Himage, Other)
-    if not simulate:
-        time.sleep(2)
+    if show_clock:
+        # Show clock display
+        logging.info("Showing clock display...")
 
-    logging.info("2.read bmp file")
-    display.init_fast()
-    Himage = Image.open(os.path.join(picdir, "7in5_V2_b.bmp"))
-    Himage_Other = Image.open(os.path.join(picdir, "7in5_V2_r.bmp"))
-    display.display(Himage, Himage_Other)
-    if not simulate:
-        time.sleep(2)
+        # Create clock image
+        clock_image = time_display.create_clock_image(
+            display.width, display.height, show_seconds=True
+        )
+
+        # Display the clock
+        display.display(clock_image)
+
+        if not simulate:
+            time.sleep(5)
+
+        logging.info("Clock display complete")
+
+    else:
+        # Original demo code
+        # Drawing on the Horizontal image
+        logging.info("1.Drawing on the Horizontal image...")
+        Himage = Image.new(
+            "1", (display.width, display.height), 255
+        )  # 255: clear the frame
+        Other = Image.new(
+            "1", (display.width, display.height), 255
+        )  # 255: clear the frame
+        draw_Himage = ImageDraw.Draw(Himage)
+        draw_other = ImageDraw.Draw(Other)
+        draw_Himage.text((10, 0), "hello world", font=font24, fill=0)
+        draw_Himage.text((10, 20), "7.5inch e-Paper B", font=font24, fill=0)
+        draw_Himage.text((150, 0), "微雪电子", font=font24, fill=0)
+        draw_other.line((20, 50, 70, 100), fill=0)
+        draw_other.line((70, 50, 20, 100), fill=0)
+        draw_other.rectangle((20, 50, 70, 100), outline=0)
+        draw_other.line((165, 50, 165, 100), fill=0)
+        draw_Himage.line((140, 75, 190, 75), fill=0)
+        draw_Himage.arc((140, 50, 190, 100), 0, 360, fill=0)
+        draw_Himage.rectangle((80, 50, 130, 100), fill=0)
+        draw_Himage.chord((200, 50, 250, 100), 0, 360, fill=0)
+
+        display.display(Himage, Other)
+        if not simulate:
+            time.sleep(2)
+
+        # Add time display section
+        logging.info("2.Showing current time...")
+        time_image = time_display.create_time_image(
+            display.width, display.height, show_date=True, show_weekday=True
+        )
+        display.display(time_image)
+        if not simulate:
+            time.sleep(3)
+
+        logging.info("3.read bmp file")
+        display.init_fast()
+        Himage = Image.open(os.path.join(picdir, "7in5_V2_b.bmp"))
+        Himage_Other = Image.open(os.path.join(picdir, "7in5_V2_r.bmp"))
+        display.display(Himage, Himage_Other)
+        if not simulate:
+            time.sleep(2)
 
     logging.info("Clear...")
     display.init()
