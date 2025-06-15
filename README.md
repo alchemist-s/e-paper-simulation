@@ -16,7 +16,7 @@ A Python library for controlling e-paper displays with support for both hardware
 
 ```bash
 git clone <your-repo-url>
-cd e-paper-main
+cd e-paper-simulation
 ```
 
 2. Install dependencies:

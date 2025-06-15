@@ -24,10 +24,8 @@ class SimulationDisplay(DisplayInterface):
         self._width = width
         self._height = height
         self.root = None
-        self.main_label = None
-        self.other_label = None
-        self.main_image_tk = None
-        self.other_image_tk = None
+        self.display_label = None
+        self.combined_image_tk = None
         self.image_counter = 0
 
         # Create output directory for saved images
@@ -48,24 +46,70 @@ class SimulationDisplay(DisplayInterface):
             return
 
         self.root = tk.Tk()
-        self.root.title("e-Paper Simulation (Real-Time)")
+        self.root.title("e-Paper Display Simulation")
 
-        # Create labels for main and other images
-        self.main_label = tk.Label(self.root, text="Main Display", compound="top")
-        self.main_label.grid(row=0, column=0, padx=10, pady=10)
+        # Configure window with e-paper-like styling
+        self.root.configure(bg="#f0f0f0")  # Light gray background
 
-        self.other_label = tk.Label(self.root, text="Other Display", compound="top")
-        self.other_label.grid(row=0, column=1, padx=10, pady=10)
+        # Create a frame to hold the display with border
+        display_frame = tk.Frame(
+            self.root, bg="#2c2c2c", relief="raised", bd=3  # Dark border
+        )
+        display_frame.pack(padx=30, pady=30)
+
+        # Create a single label for the combined display
+        self.display_label = tk.Label(
+            display_frame,
+            text="e-Paper Display",
+            compound="top",
+            bg="#f8f8f8",  # Paper-like background
+            fg="#333333",  # Dark text
+        )
+        self.display_label.pack(padx=10, pady=10)
+
+    def combine_images(self, black_image: Image.Image, red_image: Image.Image = None):
+        """Combine black and red images into a realistic e-paper display"""
+        # Start with the black image as base
+        if black_image.mode != "RGB":
+            combined = black_image.convert("RGB")
+        else:
+            combined = black_image.copy()
+
+        # If we have a red image, overlay it
+        if red_image is not None:
+            # Convert red image to RGB if needed
+            if red_image.mode != "RGB":
+                red_rgb = red_image.convert("RGB")
+            else:
+                red_rgb = red_image.copy()
+
+            # Create a mask for red pixels (where red image is black)
+            # In e-paper, black pixels in the red image become red
+            red_mask = red_image.convert("L")  # Convert to grayscale
+            red_pixels = red_mask.point(
+                lambda x: 0 if x < 128 else 255
+            )  # Threshold to binary
+
+            # Apply red color where the mask is black
+            red_data = red_rgb.load()
+            combined_data = combined.load()
+            mask_data = red_pixels.load()
+
+            for y in range(red_image.height):
+                for x in range(red_image.width):
+                    if mask_data[x, y] == 0:  # Black pixel in red image
+                        # Make it red (RGB: 255, 0, 0)
+                        combined_data[x, y] = (255, 0, 0)
+
+        return combined
 
     def pil_to_tk(self, img: Image.Image):
         """Convert PIL image to Tkinter PhotoImage"""
         if not TKINTER_AVAILABLE:
             return None
 
-        # Resize for better viewing and convert to RGB for Tkinter
-        resized = img.resize((self._width // 2, self._height // 2))
-        if img.mode == "1":  # Convert binary to RGB
-            resized = resized.convert("RGB")
+        # Resize for better viewing
+        resized = img.resize((self._width, self._height))
         return ImageTk.PhotoImage(resized)
 
     def save_image(self, img: Image.Image, prefix: str):
@@ -84,26 +128,22 @@ class SimulationDisplay(DisplayInterface):
         pass
 
     def display(self, main_image: Image.Image, other_image: Image.Image = None):
-        """Display images in Tkinter window or save to files"""
+        """Display combined images in Tkinter window or save to files"""
         if TKINTER_AVAILABLE and self.root:
-            # Update main image
-            self.main_image_tk = self.pil_to_tk(main_image)
-            self.main_label.config(image=self.main_image_tk)
-            self.main_label.image = self.main_image_tk
+            # Combine the images into a realistic e-paper display
+            combined_image = self.combine_images(main_image, other_image)
 
-            # Update other image if provided
-            if other_image:
-                self.other_image_tk = self.pil_to_tk(other_image)
-                self.other_label.config(image=self.other_image_tk)
-                self.other_label.image = self.other_image_tk
+            # Convert to Tkinter format and display
+            self.combined_image_tk = self.pil_to_tk(combined_image)
+            self.display_label.config(image=self.combined_image_tk)
+            self.display_label.image = self.combined_image_tk
 
             # Update the window
             self.root.update()
         else:
-            # Fallback: save images to files
-            self.save_image(main_image, "main")
-            if other_image:
-                self.save_image(other_image, "other")
+            # Fallback: save combined image to file
+            combined_image = self.combine_images(main_image, other_image)
+            self.save_image(combined_image, "combined")
 
     def init_fast(self):
         """Initialize for fast mode (no-op for simulation)"""
