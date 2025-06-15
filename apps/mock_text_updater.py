@@ -162,7 +162,7 @@ def main():
         updater = TextUpdater(epd)
 
         # Run the demo
-        updater.run_demo(duration=10)
+        updater.run_demo(duration=50)
 
         # Put display to sleep
         print("Putting display to sleep...")
