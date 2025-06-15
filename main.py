@@ -7,12 +7,29 @@ import logging
 import time
 from PIL import Image, ImageDraw, ImageFont
 
-picdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "pic")
-libdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "lib")
-if os.path.exists(libdir):
-    sys.path.append(libdir)
+# Get the directory where this script is located
+script_dir = os.path.dirname(os.path.realpath(__file__))
 
-from display_factory import DisplayFactory
+# Set up paths
+picdir = os.path.join(script_dir, "pic")
+libdir = os.path.join(script_dir, "lib")
+
+# Add lib directory to Python path
+if os.path.exists(libdir):
+    sys.path.insert(0, libdir)
+    logging.info(f"Added lib directory to path: {libdir}")
+else:
+    logging.error(f"Lib directory not found: {libdir}")
+    sys.exit(1)
+
+try:
+    from display_factory import DisplayFactory
+
+    logging.info("Successfully imported DisplayFactory")
+except ImportError as e:
+    logging.error(f"Failed to import DisplayFactory: {e}")
+    logging.error(f"Current sys.path: {sys.path}")
+    sys.exit(1)
 
 logging.basicConfig(level=logging.DEBUG)
 
