@@ -79,6 +79,7 @@ class HardwareDisplayManager:
             else:
                 # Hardware mode
                 result = self.display.init()
+                logger.debug(f"Display init returned: {result}")
 
                 # For hardware mode, also initialize partial mode
                 if result == 0 and self.epd_raw:
