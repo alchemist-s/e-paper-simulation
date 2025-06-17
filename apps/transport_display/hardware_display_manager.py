@@ -77,29 +77,19 @@ class HardwareDisplayManager:
                 logger.info("Simulation display initialized successfully")
                 return 0
             else:
-                # Hardware mode - main initialization
+                # Hardware mode
                 result = self.display.init()
 
-                if result != 0:
-                    logger.error(
-                        f"Hardware display initialization failed with result: {result}"
-                    )
-                    return result
-
-                logger.info("Hardware display initialized successfully")
-
-                # Try to initialize partial mode, but don't fail if it doesn't work
-                if self.epd_raw:
+                # For hardware mode, also initialize partial mode
+                if result == 0 and self.epd_raw:
                     try:
                         self.epd_raw.init_part()
-                        logger.info("Partial mode initialized successfully")
+                        logger.info("Partial mode initialized")
                     except Exception as e:
                         logger.warning(f"Failed to initialize partial mode: {e}")
-                        logger.info("Continuing without partial mode support")
-                        # Set epd_raw to None to disable partial updates
-                        self.epd_raw = None
 
-                return 0
+                logger.info("Hardware display initialized successfully")
+                return result
 
         except Exception as e:
             logger.error(f"Failed to initialize display: {e}")
