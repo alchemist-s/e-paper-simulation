@@ -87,6 +87,8 @@ class HardwareDisplayManager:
                         logger.info("Partial mode initialized")
                     except Exception as e:
                         logger.warning(f"Failed to initialize partial mode: {e}")
+                        # Don't fail the entire initialization if partial mode fails
+                        # Partial mode is optional for basic functionality
 
                 logger.info("Hardware display initialized successfully")
                 return result
