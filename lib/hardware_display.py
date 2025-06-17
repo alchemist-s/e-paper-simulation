@@ -10,7 +10,7 @@ class HardwareDisplay(DisplayInterface):
 
     def init(self):
         """Initialize the display"""
-        self.epd.init()
+        return self.epd.init()
 
     def clear(self):
         """Clear the display"""
