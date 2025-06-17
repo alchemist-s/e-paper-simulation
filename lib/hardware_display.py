@@ -6,7 +6,7 @@ class HardwareDisplay(DisplayInterface):
     """Hardware implementation for actual e-ink display"""
 
     def __init__(self, epd_module):
-        self.epd = epd_module.EPD()
+        self.epd = epd_module()
 
     def init(self):
         """Initialize the display"""
