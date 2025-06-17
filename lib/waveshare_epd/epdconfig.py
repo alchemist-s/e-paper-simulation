@@ -137,16 +137,11 @@ class RaspberryPi:
             self.DEV_SPI.DEV_Module_Init()
 
         else:
-            # Check if SPI is already open to avoid conflicts
-            try:
-                # Try to access SPI to see if it's already open
-                self.SPI.max_speed_hz
-                logger.debug("SPI already open, skipping reinitialization")
-            except (OSError, IOError):
-                # SPI device, bus = 0, device = 0
-                self.SPI.open(0, 0)
-                self.SPI.max_speed_hz = 4000000
-                self.SPI.mode = 0b00
+            # Always open SPI device - the previous check was causing issues
+            # SPI device, bus = 0, device = 0
+            self.SPI.open(0, 0)
+            self.SPI.max_speed_hz = 4000000
+            self.SPI.mode = 0b00
         return 0
 
     def module_exit(self, cleanup=False):
