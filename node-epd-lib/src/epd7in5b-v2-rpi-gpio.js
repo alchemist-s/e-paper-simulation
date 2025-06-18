@@ -1,5 +1,4 @@
 const EPDConfigRPiGPIO = require("./epd-config-rpi-gpio");
-const { createCanvas } = require("canvas");
 
 class EPD7in5bV2RPiGPIO {
   constructor() {
@@ -166,90 +165,136 @@ class EPD7in5bV2RPiGPIO {
     console.log("e-Paper busy release");
   }
 
-  getBuffer(image) {
-    const img = image;
-    const imwidth = img.width;
-    const imheight = img.height;
+  // Simple method to create a bordered box without canvas
+  createBorderedBox() {
+    const bufferSize = Math.floor(this.WIDTH / 8) * this.HEIGHT;
+    const buffer = new Array(bufferSize).fill(0x00); // Start with all white
 
-    if (imwidth === this.WIDTH && imheight === this.HEIGHT) {
-      // Image is already the correct size
-      const canvas = createCanvas(this.WIDTH, this.HEIGHT);
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0);
+    // Calculate border positions
+    const borderWidth = 10;
+    const margin = 50;
 
-      // Convert to black and white
-      const imageData = ctx.getImageData(0, 0, this.WIDTH, this.HEIGHT);
-      const data = imageData.data;
-
-      // Convert to 1-bit per pixel (black/white)
-      const buffer = [];
-      for (let y = 0; y < this.HEIGHT; y++) {
-        for (let x = 0; x < this.WIDTH; x += 8) {
-          let byte = 0;
-          for (let bit = 0; bit < 8; bit++) {
-            if (x + bit < this.WIDTH) {
-              const pixelIndex = (y * this.WIDTH + x + bit) * 4;
-              const r = data[pixelIndex];
-              const g = data[pixelIndex + 1];
-              const b = data[pixelIndex + 2];
-
-              // Convert to grayscale and then to black/white
-              const gray = (r + g + b) / 3;
-              const isBlack = gray < 128;
-
-              if (isBlack) {
-                byte |= 1 << (7 - bit);
-              }
-            }
-          }
-          buffer.push(byte);
-        }
+    // Draw horizontal borders
+    for (let y = margin; y < margin + borderWidth; y++) {
+      for (let x = margin; x < this.WIDTH - margin; x++) {
+        const byteIndex = Math.floor((y * this.WIDTH) / 8) + Math.floor(x / 8);
+        const bitPosition = 7 - (x % 8);
+        buffer[byteIndex] |= 1 << bitPosition;
       }
-
-      return buffer;
-    } else if (imwidth === this.HEIGHT && imheight === this.WIDTH) {
-      // Image needs to be rotated
-      const canvas = createCanvas(this.WIDTH, this.HEIGHT);
-      const ctx = canvas.getContext("2d");
-      ctx.translate(this.WIDTH / 2, this.HEIGHT / 2);
-      ctx.rotate(Math.PI / 2);
-      ctx.drawImage(img, -imwidth / 2, -imheight / 2);
-
-      // Convert to black and white (same as above)
-      const imageData = ctx.getImageData(0, 0, this.WIDTH, this.HEIGHT);
-      const data = imageData.data;
-
-      const buffer = [];
-      for (let y = 0; y < this.HEIGHT; y++) {
-        for (let x = 0; x < this.WIDTH; x += 8) {
-          let byte = 0;
-          for (let bit = 0; bit < 8; bit++) {
-            if (x + bit < this.WIDTH) {
-              const pixelIndex = (y * this.WIDTH + x + bit) * 4;
-              const r = data[pixelIndex];
-              const g = data[pixelIndex + 1];
-              const b = data[pixelIndex + 2];
-
-              const gray = (r + g + b) / 3;
-              const isBlack = gray < 128;
-
-              if (isBlack) {
-                byte |= 1 << (7 - bit);
-              }
-            }
-          }
-          buffer.push(byte);
-        }
-      }
-
-      return buffer;
-    } else {
-      console.warn(
-        `Wrong image dimensions: must be ${this.WIDTH}x${this.HEIGHT}`
-      );
-      // Return a blank buffer
-      return new Array(Math.floor(this.WIDTH / 8) * this.HEIGHT).fill(0x00);
     }
+
+    for (
+      let y = this.HEIGHT - margin - borderWidth;
+      y < this.HEIGHT - margin;
+      y++
+    ) {
+      for (let x = margin; x < this.WIDTH - margin; x++) {
+        const byteIndex = Math.floor((y * this.WIDTH) / 8) + Math.floor(x / 8);
+        const bitPosition = 7 - (x % 8);
+        buffer[byteIndex] |= 1 << bitPosition;
+      }
+    }
+
+    // Draw vertical borders
+    for (let x = margin; x < margin + borderWidth; x++) {
+      for (let y = margin; y < this.HEIGHT - margin; y++) {
+        const byteIndex = Math.floor((y * this.WIDTH) / 8) + Math.floor(x / 8);
+        const bitPosition = 7 - (x % 8);
+        buffer[byteIndex] |= 1 << bitPosition;
+      }
+    }
+
+    for (
+      let x = this.WIDTH - margin - borderWidth;
+      x < this.WIDTH - margin;
+      x++
+    ) {
+      for (let y = margin; y < this.HEIGHT - margin; y++) {
+        const byteIndex = Math.floor((y * this.WIDTH) / 8) + Math.floor(x / 8);
+        const bitPosition = 7 - (x % 8);
+        buffer[byteIndex] |= 1 << bitPosition;
+      }
+    }
+
+    // Draw simple text pattern (just some black pixels in the center)
+    const centerX = Math.floor(this.WIDTH / 2);
+    const centerY = Math.floor(this.HEIGHT / 2);
+
+    // Draw a simple "X" pattern
+    for (let i = 0; i < 100; i++) {
+      const x1 = centerX - 50 + i;
+      const y1 = centerY - 50 + i;
+      const x2 = centerX + 50 - i;
+      const y2 = centerY - 50 + i;
+
+      if (x1 >= 0 && x1 < this.WIDTH && y1 >= 0 && y1 < this.HEIGHT) {
+        const byteIndex =
+          Math.floor((y1 * this.WIDTH) / 8) + Math.floor(x1 / 8);
+        const bitPosition = 7 - (x1 % 8);
+        buffer[byteIndex] |= 1 << bitPosition;
+      }
+
+      if (x2 >= 0 && x2 < this.WIDTH && y2 >= 0 && y2 < this.HEIGHT) {
+        const byteIndex =
+          Math.floor((y2 * this.WIDTH) / 8) + Math.floor(x2 / 8);
+        const bitPosition = 7 - (x2 % 8);
+        buffer[byteIndex] |= 1 << bitPosition;
+      }
+    }
+
+    return buffer;
+  }
+
+  // Method to create a simple pattern
+  createPattern(pattern = "checkerboard") {
+    const bufferSize = Math.floor(this.WIDTH / 8) * this.HEIGHT;
+    const buffer = new Array(bufferSize).fill(0x00);
+
+    if (pattern === "checkerboard") {
+      for (let y = 0; y < this.HEIGHT; y++) {
+        for (let x = 0; x < this.WIDTH; x += 8) {
+          const byteIndex =
+            Math.floor((y * this.WIDTH) / 8) + Math.floor(x / 8);
+          if ((y + Math.floor(x / 8)) % 2 === 0) {
+            buffer[byteIndex] = 0xaa; // 10101010
+          } else {
+            buffer[byteIndex] = 0x55; // 01010101
+          }
+        }
+      }
+    } else if (pattern === "stripes") {
+      for (let y = 0; y < this.HEIGHT; y++) {
+        for (let x = 0; x < this.WIDTH; x += 8) {
+          const byteIndex =
+            Math.floor((y * this.WIDTH) / 8) + Math.floor(x / 8);
+          if (y % 20 < 10) {
+            buffer[byteIndex] = 0xff; // All black
+          } else {
+            buffer[byteIndex] = 0x00; // All white
+          }
+        }
+      }
+    } else if (pattern === "dots") {
+      for (let y = 0; y < this.HEIGHT; y += 20) {
+        for (let x = 0; x < this.WIDTH; x += 20) {
+          // Draw a small dot
+          for (let dy = 0; dy < 5; dy++) {
+            for (let dx = 0; dx < 5; dx++) {
+              const px = x + dx;
+              const py = y + dy;
+              if (px < this.WIDTH && py < this.HEIGHT) {
+                const byteIndex =
+                  Math.floor((py * this.WIDTH) / 8) + Math.floor(px / 8);
+                const bitPosition = 7 - (px % 8);
+                buffer[byteIndex] |= 1 << bitPosition;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return buffer;
   }
 
   async display(imageBlack, imageRed) {
@@ -325,29 +370,6 @@ class EPD7in5bV2RPiGPIO {
 
     await this.epdConfig.delay(2000);
     await this.epdConfig.moduleExit();
-  }
-
-  // Helper method to create a bordered box for testing
-  createBorderedBox() {
-    const canvas = createCanvas(this.WIDTH, this.HEIGHT);
-    const ctx = canvas.getContext("2d");
-
-    // Fill with white
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, this.WIDTH, this.HEIGHT);
-
-    // Draw black border
-    ctx.strokeStyle = "black";
-    ctx.lineWidth = 10;
-    ctx.strokeRect(50, 50, this.WIDTH - 100, this.HEIGHT - 100);
-
-    // Draw some text
-    ctx.fillStyle = "black";
-    ctx.font = "48px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText("E-Paper Test", this.WIDTH / 2, this.HEIGHT / 2);
-
-    return this.getBuffer(canvas);
   }
 
   // Helper method to create an empty (white) buffer
