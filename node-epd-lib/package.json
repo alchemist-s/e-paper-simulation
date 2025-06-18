@@ -7,14 +7,14 @@
     "test": "node test.js",
     "start": "node examples/bordered-box.js",
     "start-fs": "node examples/bordered-box-fs.js",
+    "start-minimal": "node examples/minimal-test.js",
     "test-simple": "node examples/test-buffer-only.js"
   },
   "keywords": ["e-paper", "display", "raspberry-pi", "spi", "gpio"],
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
-    "spi-device": "^3.1.0",
-    "canvas": "^2.11.2"
+    "spi-device": "^3.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0"
