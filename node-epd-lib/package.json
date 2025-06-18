@@ -1,0 +1,24 @@
+{
+  "name": "node-epd-lib",
+  "version": "1.0.0",
+  "description": "Node.js library for controlling e-paper displays",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test.js",
+    "start": "node examples/bordered-box.js"
+  },
+  "keywords": ["e-paper", "display", "raspberry-pi", "spi", "gpio"],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "spi-device": "^3.1.0",
+    "onoff": "^6.0.3",
+    "canvas": "^2.11.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+} 
