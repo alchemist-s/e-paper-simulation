@@ -12,6 +12,7 @@ A Node.js library for controlling e-paper displays, specifically designed for th
 - **Image Processing**: Full image conversion and rotation support
 - **Partial Updates**: Support for partial display updates
 - **Multiple Init Modes**: Standard, Fast, and Partial initialization modes
+- **Multiple GPIO Libraries**: Support for pigpio, onoff, rpi-gpio, and file system GPIO
 
 ## Installation
 
@@ -57,6 +58,92 @@ npm install
    sudo apt-get update
    sudo apt-get install build-essential python3-dev
    ```
+
+## GPIO Configuration Options
+
+The library supports multiple GPIO libraries for different use cases:
+
+### 1. pigpio (Recommended for Raspberry Pi)
+
+**Best for**: High-performance applications requiring precise timing and microsecond accuracy.
+
+**Features**:
+
+- Fast GPIO operations with microsecond precision
+- Interrupt handling and state change notifications
+- PWM and servo control capabilities
+- Hardware-level timing accuracy
+- BCM GPIO numbering (compatible with gpiozero)
+
+**Installation**:
+
+```bash
+# Install pigpio C library
+sudo apt-get install pigpio
+
+# Install Node.js pigpio package
+npm install pigpio
+```
+
+**Usage**:
+
+```bash
+# Run with sudo (required for pigpio)
+sudo node examples/minimal-test-pigpio.js
+```
+
+**Documentation**: See [README-PIGPIO.md](README-PIGPIO.md) for detailed pigpio configuration and usage.
+
+### 2. onoff (Alternative)
+
+**Best for**: Simple GPIO operations without root privileges.
+
+**Features**:
+
+- No root privileges required
+- Simple API
+- Interrupt support
+- BCM GPIO numbering
+
+**Installation**:
+
+```bash
+npm install onoff
+```
+
+### 3. rpi-gpio (Legacy)
+
+**Best for**: Legacy applications or compatibility with older code.
+
+**Features**:
+
+- Traditional GPIO library
+- No root privileges required
+- BCM GPIO numbering
+
+**Installation**:
+
+```bash
+npm install rpi-gpio
+```
+
+### 4. File System GPIO (Fallback)
+
+**Best for**: Systems where native GPIO libraries fail to build.
+
+**Features**:
+
+- Direct file system access to GPIO
+- No native dependencies
+- Works on all Linux systems
+- Requires correct GPIO chip numbering
+
+**Usage**:
+
+```bash
+# May require different GPIO numbers on some Pi models
+node examples/minimal-test-fs.js
+```
 
 ## Quick Start
 

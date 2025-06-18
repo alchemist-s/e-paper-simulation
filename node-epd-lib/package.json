@@ -10,6 +10,8 @@
     "start-rpi": "node examples/bordered-box-rpi-gpio.js",
     "start-minimal": "node examples/minimal-test.js",
     "start-rpi-minimal": "node examples/minimal-test-rpi-gpio.js",
+    "start-pigpio": "sudo node examples/minimal-test-pigpio.js",
+    "start-pigpio-full": "sudo node examples/bordered-box-pigpio.js",
     "test-simple": "node examples/test-buffer-only.js"
   },
   "keywords": ["e-paper", "display", "raspberry-pi", "spi", "gpio"],
