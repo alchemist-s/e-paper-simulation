@@ -2,14 +2,15 @@ const SpiDevice = require("spi-device");
 const fs = require("fs").promises;
 const path = require("path");
 
-class EPDConfigFS {
+class EPDConfigFSCustom {
   constructor() {
     // Pin definitions for 7.5" e-paper display
-    this.RST_PIN = 17;
-    this.DC_PIN = 25;
-    this.CS_PIN = 8;
-    this.BUSY_PIN = 24;
-    this.PWR_PIN = 18;
+    // Using GPIO numbers that work on this system (likely Jetson Nano)
+    this.RST_PIN = 512; // GPIO 0 on chip 512
+    this.DC_PIN = 513; // GPIO 1 on chip 512
+    this.CS_PIN = 514; // GPIO 2 on chip 512
+    this.BUSY_PIN = 515; // GPIO 3 on chip 512
+    this.PWR_PIN = 516; // GPIO 4 on chip 512
 
     // SPI configuration
     this.SPI_BUS = 0;
@@ -25,7 +26,7 @@ class EPDConfigFS {
 
   async init() {
     try {
-      console.log("Initializing e-paper hardware (file system GPIO)...");
+      console.log("Initializing e-paper hardware (custom GPIO numbering)...");
 
       // Set up GPIO pins using file system
       await this.setupGPIO();
@@ -225,4 +226,4 @@ class EPDConfigFS {
   }
 }
 
-module.exports = EPDConfigFS;
+module.exports = EPDConfigFSCustom;

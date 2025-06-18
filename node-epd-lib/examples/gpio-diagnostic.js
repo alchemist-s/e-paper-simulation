@@ -57,31 +57,59 @@ async function gpioDiagnostic() {
 
     // Check 4: Test GPIO export as current user
     console.log("\n4. Testing GPIO export...");
+
+    // First, check what GPIO pins are already exported
     try {
-      await fs.writeFile("/sys/class/gpio/export", "17");
-      console.log("✅ Successfully exported GPIO 17");
+      const { stdout: existingGpios } = await execAsync(
+        'ls /sys/class/gpio/ | grep gpio || echo "No GPIO pins exported"'
+      );
+      console.log(`Currently exported GPIO pins: ${existingGpios.trim()}`);
+    } catch (err) {
+      console.log("Cannot check existing GPIO pins:", err.message);
+    }
+
+    // Check GPIO chip information
+    console.log("\n4a. Checking GPIO chip information...");
+    try {
+      const { stdout: chipInfo } = await execAsync(
+        'cat /sys/class/gpio/gpiochip*/label 2>/dev/null || echo "No labels found"'
+      );
+      console.log(`GPIO chip labels: ${chipInfo.trim()}`);
+
+      const { stdout: chipBase } = await execAsync(
+        'cat /sys/class/gpio/gpiochip*/base 2>/dev/null || echo "No base found"'
+      );
+      console.log(`GPIO chip base numbers: ${chipBase.trim()}`);
+    } catch (err) {
+      console.log("Cannot check GPIO chip info:", err.message);
+    }
+
+    // Try GPIO 512 (first chip base) instead of 17
+    try {
+      await fs.writeFile("/sys/class/gpio/export", "512");
+      console.log("✅ Successfully exported GPIO 512");
 
       // Check if the directory was created
       try {
-        await fs.access("/sys/class/gpio/gpio17");
-        console.log("✅ GPIO 17 directory created");
+        await fs.access("/sys/class/gpio/gpio512");
+        console.log("✅ GPIO 512 directory created");
 
         // Try to set direction
-        await fs.writeFile("/sys/class/gpio/gpio17/direction", "out");
-        console.log("✅ Successfully set GPIO 17 to output");
+        await fs.writeFile("/sys/class/gpio/gpio512/direction", "out");
+        console.log("✅ Successfully set GPIO 512 to output");
 
         // Try to write a value
-        await fs.writeFile("/sys/class/gpio/gpio17/value", "1");
-        console.log("✅ Successfully wrote to GPIO 17");
+        await fs.writeFile("/sys/class/gpio/gpio512/value", "1");
+        console.log("✅ Successfully wrote to GPIO 512");
 
         // Clean up
-        await fs.writeFile("/sys/class/gpio/unexport", "17");
-        console.log("✅ Successfully unexported GPIO 17");
+        await fs.writeFile("/sys/class/gpio/unexport", "512");
+        console.log("✅ Successfully unexported GPIO 512");
       } catch (err) {
-        console.log("❌ GPIO 17 directory not accessible:", err.message);
+        console.log("❌ GPIO 512 directory not accessible:", err.message);
       }
     } catch (err) {
-      console.log("❌ Cannot export GPIO 17:", err.message);
+      console.log("❌ Cannot export GPIO 512:", err.message);
       console.log("   This might be a permission issue");
     }
 

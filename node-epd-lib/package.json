@@ -7,14 +7,18 @@
     "test": "node test.js",
     "start": "node examples/bordered-box.js",
     "start-fs": "node examples/bordered-box-fs.js",
+    "start-rpi": "node examples/bordered-box-rpi-gpio.js",
     "start-minimal": "node examples/minimal-test.js",
+    "start-rpi-minimal": "node examples/minimal-test-rpi-gpio.js",
     "test-simple": "node examples/test-buffer-only.js"
   },
   "keywords": ["e-paper", "display", "raspberry-pi", "spi", "gpio"],
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
-    "spi-device": "^3.1.0"
+    "spi-device": "^3.1.0",
+    "rpi-gpio": "^2.1.7",
+    "canvas": "^2.11.2"
   },
   "devDependencies": {
     "@types/node": "^20.0.0"
