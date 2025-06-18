@@ -55,24 +55,48 @@ class EPDConfigFS {
       const outputPins = [this.RST_PIN, this.DC_PIN, this.CS_PIN, this.PWR_PIN];
       const inputPins = [this.BUSY_PIN];
 
+      console.log("Exporting GPIO pins...");
+
       // Export all pins
       for (const pin of [...outputPins, ...inputPins]) {
         try {
           await fs.writeFile("/sys/class/gpio/export", pin.toString());
-          await this.delay(100); // Wait for export
+          console.log(`Exported GPIO ${pin}`);
+          await this.delay(200); // Wait longer for export to complete
         } catch (err) {
-          // Pin might already be exported, ignore error
+          if (err.code === "EBUSY") {
+            console.log(`GPIO ${pin} already exported`);
+          } else {
+            console.error(`Failed to export GPIO ${pin}:`, err.message);
+            throw err;
+          }
         }
       }
 
+      console.log("Setting pin directions...");
+
       // Set direction for output pins
       for (const pin of outputPins) {
-        await fs.writeFile(`/sys/class/gpio/gpio${pin}/direction`, "out");
+        try {
+          await fs.writeFile(`/sys/class/gpio/gpio${pin}/direction`, "out");
+          console.log(`Set GPIO ${pin} to output`);
+          await this.delay(50); // Small delay between pins
+        } catch (err) {
+          console.error(`Failed to set GPIO ${pin} direction:`, err.message);
+          throw err;
+        }
       }
 
       // Set direction for input pins
       for (const pin of inputPins) {
-        await fs.writeFile(`/sys/class/gpio/gpio${pin}/direction`, "in");
+        try {
+          await fs.writeFile(`/sys/class/gpio/gpio${pin}/direction`, "in");
+          console.log(`Set GPIO ${pin} to input`);
+          await this.delay(50); // Small delay between pins
+        } catch (err) {
+          console.error(`Failed to set GPIO ${pin} direction:`, err.message);
+          throw err;
+        }
       }
 
       console.log("GPIO pins set up successfully");
