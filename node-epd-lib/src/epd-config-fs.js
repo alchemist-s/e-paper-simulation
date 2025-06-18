@@ -1,6 +1,8 @@
 const SpiDevice = require("spi-device");
+const fs = require("fs").promises;
+const path = require("path");
 
-class EPDConfig {
+class EPDConfigFS {
   constructor() {
     // Pin definitions for 7.5" e-paper display
     this.RST_PIN = 17;
@@ -15,9 +17,6 @@ class EPDConfig {
     this.SPI_MODE = 0;
     this.SPI_MAX_SPEED = 4000000; // 4MHz
 
-    // GPIO objects
-    this.gpio = null;
-
     // SPI object
     this.spi = null;
 
@@ -26,12 +25,9 @@ class EPDConfig {
 
   async init() {
     try {
-      console.log("Initializing e-paper hardware...");
+      console.log("Initializing e-paper hardware (file system GPIO)...");
 
-      // Initialize GPIO
-      this.gpio = require("rpi-gpio");
-
-      // Set up GPIO pins
+      // Set up GPIO pins using file system
       await this.setupGPIO();
 
       // Power on the display
@@ -54,38 +50,36 @@ class EPDConfig {
   }
 
   async setupGPIO() {
-    return new Promise((resolve, reject) => {
-      this.gpio.setMode(this.gpio.MODE_BCM);
-
-      // Setup output pins
+    try {
+      // Export GPIO pins
       const outputPins = [this.RST_PIN, this.DC_PIN, this.CS_PIN, this.PWR_PIN];
-      let setupCount = 0;
+      const inputPins = [this.BUSY_PIN];
 
-      outputPins.forEach((pin) => {
-        this.gpio.setup(pin, this.gpio.DIR_OUT, (err) => {
-          if (err) {
-            console.error(`Failed to setup GPIO pin ${pin}:`, err);
-            reject(err);
-            return;
-          }
-          setupCount++;
-          if (setupCount === outputPins.length) {
-            // Setup input pin
-            this.gpio.setup(this.BUSY_PIN, this.gpio.DIR_IN, (err) => {
-              if (err) {
-                console.error(
-                  `Failed to setup GPIO pin ${this.BUSY_PIN}:`,
-                  err
-                );
-                reject(err);
-                return;
-              }
-              resolve();
-            });
-          }
-        });
-      });
-    });
+      // Export all pins
+      for (const pin of [...outputPins, ...inputPins]) {
+        try {
+          await fs.writeFile("/sys/class/gpio/export", pin.toString());
+          await this.delay(100); // Wait for export
+        } catch (err) {
+          // Pin might already be exported, ignore error
+        }
+      }
+
+      // Set direction for output pins
+      for (const pin of outputPins) {
+        await fs.writeFile(`/sys/class/gpio/gpio${pin}/direction`, "out");
+      }
+
+      // Set direction for input pins
+      for (const pin of inputPins) {
+        await fs.writeFile(`/sys/class/gpio/gpio${pin}/direction`, "in");
+      }
+
+      console.log("GPIO pins set up successfully");
+    } catch (error) {
+      console.error("Failed to setup GPIO:", error);
+      throw error;
+    }
   }
 
   async digitalWrite(pin, value) {
@@ -93,16 +87,12 @@ class EPDConfig {
       throw new Error("EPD not initialized. Call init() first.");
     }
 
-    return new Promise((resolve, reject) => {
-      this.gpio.write(pin, value ? 1 : 0, (err) => {
-        if (err) {
-          console.error(`Failed to write to pin ${pin}:`, err);
-          reject(err);
-        } else {
-          resolve();
-        }
-      });
-    });
+    try {
+      await fs.writeFile(`/sys/class/gpio/gpio${pin}/value`, value ? "1" : "0");
+    } catch (error) {
+      console.error(`Failed to write to pin ${pin}:`, error);
+      throw error;
+    }
   }
 
   async digitalRead(pin) {
@@ -110,16 +100,16 @@ class EPDConfig {
       throw new Error("EPD not initialized. Call init() first.");
     }
 
-    return new Promise((resolve, reject) => {
-      this.gpio.read(pin, (err, value) => {
-        if (err) {
-          console.error(`Failed to read from pin ${pin}:`, err);
-          reject(err);
-        } else {
-          resolve(value);
-        }
-      });
-    });
+    try {
+      const value = await fs.readFile(
+        `/sys/class/gpio/gpio${pin}/value`,
+        "utf8"
+      );
+      return parseInt(value.trim());
+    } catch (error) {
+      console.error(`Failed to read from pin ${pin}:`, error);
+      throw error;
+    }
   }
 
   async spiWrite(data) {
@@ -169,13 +159,26 @@ class EPDConfig {
         this.spi.closeSync();
       }
 
-      // Power off and cleanup GPIO
+      // Power off GPIO
       await this.digitalWrite(this.RST_PIN, 0);
       await this.digitalWrite(this.DC_PIN, 0);
       await this.digitalWrite(this.PWR_PIN, 0);
 
-      // Reset GPIO mode
-      this.gpio.reset();
+      // Unexport GPIO pins
+      const allPins = [
+        this.RST_PIN,
+        this.DC_PIN,
+        this.CS_PIN,
+        this.BUSY_PIN,
+        this.PWR_PIN,
+      ];
+      for (const pin of allPins) {
+        try {
+          await fs.writeFile("/sys/class/gpio/unexport", pin.toString());
+        } catch (err) {
+          // Ignore errors during unexport
+        }
+      }
 
       this.initialized = false;
       console.log("E-paper hardware cleanup completed");
@@ -185,4 +188,4 @@ class EPDConfig {
   }
 }
 
-module.exports = EPDConfig;
+module.exports = EPDConfigFS;
