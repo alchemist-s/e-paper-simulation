@@ -4,18 +4,18 @@ const fs = require("fs").promises;
 class EPDConfigFSPi4 {
   constructor() {
     // Pin definitions for 7.5" e-paper display
-    // Using GPIO numbers for this specific Pi 4 (gpiochip512)
-    this.RST_PIN = 512; // GPIO 0 on chip 512
-    this.DC_PIN = 513; // GPIO 1 on chip 512
-    this.CS_PIN = 514; // GPIO 2 on chip 512
-    this.BUSY_PIN = 515; // GPIO 3 on chip 512
-    this.PWR_PIN = 516; // GPIO 4 on chip 512
+    // Using standard Raspberry Pi GPIO numbers (like Python version)
+    this.RST_PIN = 17; // GPIO 17
+    this.DC_PIN = 25; // GPIO 25
+    this.CS_PIN = 8; // GPIO 8
+    this.BUSY_PIN = 24; // GPIO 24
+    this.PWR_PIN = 18; // GPIO 18
 
     // SPI configuration
     this.SPI_BUS = 0;
     this.SPI_DEVICE = 0;
     this.SPI_MODE = 0;
-    this.SPI_MAX_SPEED = 4000000; // 4MHz
+    this.SPI_MAX_SPEED = 1000000; // 1MHz (reduced from 4MHz)
 
     // SPI object
     this.spi = null;
