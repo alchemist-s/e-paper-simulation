@@ -83,7 +83,7 @@ class EPD7in5bV2Pi4 {
   async sendData(data) {
     await this.epdConfig.digitalWrite(this.dcPin, 1);
     await this.epdConfig.digitalWrite(this.csPin, 0);
-    await this.epdConfig.spiWrite(data);
+    await this.epdConfig.spiWrite([data]);
     await this.epdConfig.digitalWrite(this.csPin, 1);
   }
 
