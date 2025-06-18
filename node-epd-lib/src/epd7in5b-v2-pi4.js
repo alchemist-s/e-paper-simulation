@@ -18,7 +18,8 @@ class EPD7in5bV2Pi4 {
   }
 
   async init() {
-    if (this.epdConfig.init() !== 0) {
+    const initResult = await this.epdConfig.init();
+    if (initResult !== 0) {
       return -1;
     }
 
