@@ -120,10 +120,6 @@ class EPDConfigFSPi4 {
   }
 
   async digitalWrite(pin, value) {
-    if (!this.initialized) {
-      throw new Error("EPD not initialized. Call init() first.");
-    }
-
     try {
       await fs.writeFile(`/sys/class/gpio/gpio${pin}/value`, value ? "1" : "0");
     } catch (error) {
@@ -133,10 +129,6 @@ class EPDConfigFSPi4 {
   }
 
   async digitalRead(pin) {
-    if (!this.initialized) {
-      throw new Error("EPD not initialized. Call init() first.");
-    }
-
     try {
       const value = await fs.readFile(
         `/sys/class/gpio/gpio${pin}/value`,
