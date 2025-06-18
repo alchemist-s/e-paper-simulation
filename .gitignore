@@ -149,3 +149,7 @@ Thumbs.db
 # Hardware specific files (if any)
 *.bin
 *.hex 
+
+# node-epd-lib
+node-epd-lib/node_modules/
+node-epd-lib/package-lock.json
