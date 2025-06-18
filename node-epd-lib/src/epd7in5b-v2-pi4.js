@@ -83,14 +83,21 @@ class EPD7in5bV2Pi4 {
   async sendData(data) {
     await this.epdConfig.digitalWrite(this.dcPin, 1);
     await this.epdConfig.digitalWrite(this.csPin, 0);
-    await this.epdConfig.spiWrite([data]);
+    await this.epdConfig.spiWrite(data);
     await this.epdConfig.digitalWrite(this.csPin, 1);
   }
 
   async sendData2(data) {
     await this.epdConfig.digitalWrite(this.dcPin, 1);
     await this.epdConfig.digitalWrite(this.csPin, 0);
-    await this.epdConfig.spiWrite(data);
+
+    // Send data in smaller chunks to avoid EMSGSIZE error
+    const chunkSize = 4096; // 4KB chunks
+    for (let i = 0; i < data.length; i += chunkSize) {
+      const chunk = data.slice(i, i + chunkSize);
+      await this.epdConfig.spiWrite(chunk);
+    }
+
     await this.epdConfig.digitalWrite(this.csPin, 1);
   }
 
