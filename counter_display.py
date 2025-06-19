@@ -92,25 +92,61 @@ class CounterDisplay:
         text = f"Counter {self.counter}"
         logger.info(f"Updating display: {text}")
 
-        # Create the image
-        image = self.create_text_image(text)
-
         if use_partial and self.counter > 0:
-            # Use partial display for updates after the first display
-            # Calculate the exact region to update (just the text area with some padding)
+            # For partial updates, create a smaller image with just the text
             padding = 10
             x_start = max(0, self.text_x - padding)
             x_end = min(self.epd.width, self.text_x + self.text_width + padding)
             y_start = max(0, self.text_y - padding)
             y_end = min(self.epd.height, self.text_y + self.text_height + padding)
 
-            # Get the buffer for the image
-            buffer = self.epd.getbuffer(image)
+            # Create a smaller image for the partial update region
+            region_width = x_end - x_start
+            region_height = y_end - y_start
+
+            # Create image for just this region
+            region_image = Image.new("1", (region_width, region_height), self.bg_color)
+            region_draw = ImageDraw.Draw(region_image)
+
+            # Try to use a system font, fallback to default if not available
+            try:
+                font_options = [
+                    "/System/Library/Fonts/Arial.ttf",  # macOS
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",  # Linux
+                    "/usr/share/fonts/TTF/Arial.ttf",  # Some Linux distros
+                ]
+
+                font = None
+                for font_path in font_options:
+                    if os.path.exists(font_path):
+                        font = ImageFont.truetype(font_path, self.font_size)
+                        break
+
+                if font is None:
+                    font = ImageFont.load_default()
+            except Exception as e:
+                font = ImageFont.load_default()
+
+            # Calculate text position relative to the region
+            text_x_in_region = self.text_x - x_start
+            text_y_in_region = self.text_y - y_start
+
+            # Draw the text in the region
+            region_draw.text(
+                (text_x_in_region, text_y_in_region),
+                text,
+                fill=self.text_color,
+                font=font,
+            )
+
+            # Get the buffer for just this region
+            buffer = self.epd.getbuffer(region_image)
 
             # Update only the specific region
             self.epd.display_Partial(buffer, x_start, y_start, x_end, y_end)
         else:
             # Full display for the first time
+            image = self.create_text_image(text)
             buffer = self.epd.getbuffer(image)
             # Create a blank red buffer (no red content)
             red_buffer = [0x00] * (int(self.epd.width / 8) * self.epd.height)
