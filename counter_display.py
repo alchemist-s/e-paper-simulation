@@ -26,9 +26,15 @@ class CounterDisplay:
         self.text_color = 0  # Black
         self.bg_color = 255  # White
 
-        # Initialize the display
-        logger.info("Initializing e-paper display...")
-        if self.epd.init() != 0:
+        # Text region tracking
+        self.text_x = 50
+        self.text_y = 200
+        self.text_width = 700
+        self.text_height = 80
+
+        # Initialize the display for partial updates
+        logger.info("Initializing e-paper display for partial updates...")
+        if self.epd.init_part() != 0:
             logger.error("Failed to initialize e-paper display")
             sys.exit(1)
 
@@ -36,56 +42,99 @@ class CounterDisplay:
         self.epd.Clear()
         logger.info("Display initialized successfully")
 
-    def create_text_image(self, text, font_size=None):
-        """Create an image with the given text"""
-        if font_size is None:
-            font_size = self.font_size
-
-        # Create a new image with white background
-        image = Image.new("1", (self.epd.width, self.epd.height), self.bg_color)
-        draw = ImageDraw.Draw(image)
-
-        # Try to use a system font, fallback to default if not available
+        # Font setup
         try:
-            # Try different font options
             font_options = [
                 "/System/Library/Fonts/Arial.ttf",  # macOS
                 "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",  # Linux
                 "/usr/share/fonts/TTF/Arial.ttf",  # Some Linux distros
             ]
 
-            font = None
+            self.font = None
             for font_path in font_options:
                 if os.path.exists(font_path):
-                    font = ImageFont.truetype(font_path, font_size)
+                    self.font = ImageFont.truetype(font_path, self.font_size)
                     break
 
-            if font is None:
-                # Use default font
-                font = ImageFont.load_default()
+            if self.font is None:
+                self.font = ImageFont.load_default()
                 logger.warning("Using default font - text may not display optimally")
         except Exception as e:
             logger.warning(f"Could not load system font: {e}")
-            font = ImageFont.load_default()
+            self.font = ImageFont.load_default()
 
-        # Calculate text position to center it
-        bbox = draw.textbbox((0, 0), text, font=font)
+    def create_text_image(self, text):
+        """Create an image with the given text"""
+        # Create full-size image for the display
+        image = Image.new("1", (self.epd.width, self.epd.height), self.bg_color)
+        draw = ImageDraw.Draw(image)
+
+        # Get text bounding box
+        bbox = draw.textbbox((0, 0), text, font=self.font)
         text_width = bbox[2] - bbox[0]
         text_height = bbox[3] - bbox[1]
 
-        x = (self.epd.width - text_width) // 2
-        y = (self.epd.height - text_height) // 2
+        # Center the text within the text region
+        x = self.text_x + (self.text_width - text_width) // 2
+        y = self.text_y + (self.text_height - text_height) // 2
 
-        # Draw the text
-        draw.text((x, y), text, fill=self.text_color, font=font)
-
-        # Store text position for partial updates
-        self.text_x = x
-        self.text_y = y
-        self.text_width = text_width
-        self.text_height = text_height
+        # Draw text
+        draw.text((x, y), text, fill=self.text_color, font=self.font)
 
         return image
+
+    def get_text_buffer(self, text):
+        """Convert text image to buffer for display_Partial"""
+        # Calculate buffer size based on display_Partial logic
+        x_start = self.text_x
+        x_end = self.text_x + self.text_width
+        y_start = self.text_y
+        y_end = self.text_y + self.text_height
+
+        # Apply the same boundary adjustments as display_Partial
+        if (
+            (x_start % 8 + x_end % 8 == 8 & x_start % 8 > x_end % 8)
+            | x_start % 8 + x_end % 8
+            == 0 | (x_end - x_start) % 8
+            == 0
+        ):
+            x_start = x_start // 8 * 8
+            x_end = x_end // 8 * 8
+        else:
+            x_start = x_start // 8 * 8
+            if x_end % 8 == 0:
+                x_end = x_end // 8 * 8
+            else:
+                x_end = x_end // 8 * 8 + 1
+
+        width_bytes = (x_end - x_start) // 8
+        height = y_end - y_start
+
+        # Create the text image for the region
+        region_image = Image.new("1", (x_end - x_start, height), self.bg_color)
+        draw = ImageDraw.Draw(region_image)
+
+        # Get text bounding box
+        bbox = draw.textbbox((0, 0), text, font=self.font)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
+
+        # Center the text in the region
+        text_x = (region_image.width - text_width) // 2
+        text_y = (region_image.height - text_height) // 2
+
+        # Draw text
+        draw.text((text_x, text_y), text, fill=self.text_color, font=self.font)
+
+        # Convert to buffer
+        img = region_image.convert("1")
+        buf = bytearray(img.tobytes("raw"))
+
+        # Invert the bytes (same as getbuffer does)
+        for i in range(len(buf)):
+            buf[i] ^= 0xFF
+
+        return buf
 
     def update_display(self, use_partial=True):
         """Update the display with the current counter value"""
@@ -93,56 +142,16 @@ class CounterDisplay:
         logger.info(f"Updating display: {text}")
 
         if use_partial and self.counter > 0:
-            # For partial updates, create a smaller image with just the text
-            padding = 10
-            x_start = max(0, self.text_x - padding)
-            x_end = min(self.epd.width, self.text_x + self.text_width + padding)
-            y_start = max(0, self.text_y - padding)
-            y_end = min(self.epd.height, self.text_y + self.text_height + padding)
+            # Use partial display for updates after the first display
+            buffer = self.get_text_buffer(text)
 
-            # Create a smaller image for the partial update region
-            region_width = x_end - x_start
-            region_height = y_end - y_start
+            # Calculate region coordinates
+            x_start = self.text_x
+            y_start = self.text_y
+            x_end = self.text_x + self.text_width
+            y_end = self.text_y + self.text_height
 
-            # Create image for just this region
-            region_image = Image.new("1", (region_width, region_height), self.bg_color)
-            region_draw = ImageDraw.Draw(region_image)
-
-            # Try to use a system font, fallback to default if not available
-            try:
-                font_options = [
-                    "/System/Library/Fonts/Arial.ttf",  # macOS
-                    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",  # Linux
-                    "/usr/share/fonts/TTF/Arial.ttf",  # Some Linux distros
-                ]
-
-                font = None
-                for font_path in font_options:
-                    if os.path.exists(font_path):
-                        font = ImageFont.truetype(font_path, self.font_size)
-                        break
-
-                if font is None:
-                    font = ImageFont.load_default()
-            except Exception as e:
-                font = ImageFont.load_default()
-
-            # Calculate text position relative to the region
-            text_x_in_region = self.text_x - x_start
-            text_y_in_region = self.text_y - y_start
-
-            # Draw the text in the region
-            region_draw.text(
-                (text_x_in_region, text_y_in_region),
-                text,
-                fill=self.text_color,
-                font=font,
-            )
-
-            # Get the buffer for just this region
-            buffer = self.epd.getbuffer(region_image)
-
-            # Update only the specific region
+            # Update the specific region
             self.epd.display_Partial(buffer, x_start, y_start, x_end, y_end)
         else:
             # Full display for the first time
