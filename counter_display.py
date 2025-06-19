@@ -79,6 +79,12 @@ class CounterDisplay:
         # Draw the text
         draw.text((x, y), text, fill=self.text_color, font=font)
 
+        # Store text position for partial updates
+        self.text_x = x
+        self.text_y = y
+        self.text_width = text_width
+        self.text_height = text_height
+
         return image
 
     def update_display(self, use_partial=True):
@@ -91,15 +97,18 @@ class CounterDisplay:
 
         if use_partial and self.counter > 0:
             # Use partial display for updates after the first display
-            # Calculate the area to update (full width, just the text area)
-            y_start = (self.epd.height - self.font_size) // 2 - 10
-            y_end = (self.epd.height + self.font_size) // 2 + 10
+            # Calculate the exact region to update (just the text area with some padding)
+            padding = 10
+            x_start = max(0, self.text_x - padding)
+            x_end = min(self.epd.width, self.text_x + self.text_width + padding)
+            y_start = max(0, self.text_y - padding)
+            y_end = min(self.epd.height, self.text_y + self.text_height + padding)
 
             # Get the buffer for the image
             buffer = self.epd.getbuffer(image)
 
-            # Update partial area
-            self.epd.display_Partial(buffer, 0, y_start, self.epd.width, y_end)
+            # Update only the specific region
+            self.epd.display_Partial(buffer, x_start, y_start, x_end, y_end)
         else:
             # Full display for the first time
             buffer = self.epd.getbuffer(image)
