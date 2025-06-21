@@ -53,7 +53,7 @@ async def startup_event():
     try:
         logger.info("Initializing EPD display...")
         result = subprocess.run(
-            ["sudo", "python3", "epd_init.py"],
+            ["sudo", "python3", "test_existing_image.py"],
             capture_output=True,
             text=True,
             cwd=os.getcwd(),
