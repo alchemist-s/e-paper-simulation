@@ -216,72 +216,26 @@ def update_epd_partial(epd, image, regions):
 
 
 def update_epd_partial_alternative(epd, image, regions):
-    """Alternative partial update method using region-specific buffers like the counter script"""
-    try:
-        # Update each changed region with its own buffer
-        for i, (x_min, y_min, x_max, y_max) in enumerate(regions):
-            print(
-                f"Alternative update region {i+1}/{len(regions)}: ({x_min},{y_min}) to ({x_max},{y_max})"
-            )
+    """Update specific regions of the e-paper display using alternative method"""
+    for i, (x_start, y_start, x_end, y_end) in enumerate(regions):
+        print(
+            f"Updating region {i+1}/{len(regions)}: ({x_start}, {y_start}) to ({x_end}, {y_end})"
+        )
 
-            # Ensure all values are integers
-            x_min = int(x_min)
-            y_min = int(y_min)
-            x_max = int(x_max)
-            y_max = int(y_max)
+        # Crop the region from the full image
+        region_image = image.crop((x_start, y_start, x_end, y_end))
 
-            # Apply the same boundary adjustments as the counter script
-            if (
-                (x_min % 8 + x_max % 8 == 8 and x_min % 8 > x_max % 8)
-                or x_min % 8 + x_max % 8 == 0
-                or (x_max - x_min) % 8 == 0
-            ):
-                x_min = x_min // 8 * 8
-                x_max = x_max // 8 * 8
-            else:
-                x_min = x_min // 8 * 8
-                if x_max % 8 == 0:
-                    x_max = x_max // 8 * 8
-                else:
-                    x_max = x_max // 8 * 8 + 1
+        # Convert to 1-bit and get buffer
+        region_image_1bit = region_image.convert("1")
+        buffer = bytearray(region_image_1bit.tobytes("raw"))
 
-            print(f"Aligned region: ({x_min},{y_min}) to ({x_max},{y_max})")
+        # Invert the bytes (same as getbuffer does)
+        for j in range(len(buffer)):
+            buffer[j] ^= 0xFF
 
-            # Crop the region from the full image
-            region_image = image.crop((x_min, y_min, x_max, y_max))
-
-            # Convert to buffer using the same method as counter script
-            img = region_image.convert("1")
-            buf = bytearray(img.tobytes("raw"))
-
-            # Invert the bytes (same as getbuffer does)
-            for i in range(len(buf)):
-                buf[i] ^= 0xFF
-
-            print(f"Region buffer size: {len(buf)} bytes")
-
-            # Update the region using the region buffer
-            epd.display_Partial(buf, x_min, y_min, x_max, y_max)
-            print(f"Updated region: ({x_min},{y_min}) to ({x_max},{y_max})")
-
-        return True
-    except Exception as e:
-        print(f"Failed to update e-paper display (alternative): {e}")
-        import traceback
-
-        traceback.print_exc()
-        return False
-
-
-def display_first_image(epd, epd_image):
-    """Display the first image on e-paper"""
-    print("Creating buffer for first display...")
-    buffer = epd.getbuffer(epd_image)
-    red_buffer = [0x00] * (int(EPD_WIDTH / 8) * EPD_HEIGHT)
-    print(f"Buffer size: {len(buffer)}")
-    print("Sending to e-paper display...")
-    epd.display(buffer, red_buffer)
-    print("First image displayed on e-paper")
+        # Update the region
+        epd.display_Partial(buffer, x_start, y_start, x_end, y_end)
+        print(f"Region {i+1} updated successfully")
 
 
 def merge_regions(regions, merge_distance=32):
@@ -386,9 +340,11 @@ def main():
 
         # Display images
         if previous_epd_image is None:
-            # First image display
-            print("First image - using full display update")
-            display_first_image(epd, new_epd_image)
+            # First image display - use partial update method to avoid red
+            print("First image - using partial update method")
+            # Create a full-size region for the first display
+            full_region = [(0, 0, EPD_WIDTH, EPD_HEIGHT)]
+            update_epd_partial_alternative(epd, new_epd_image, full_region)
         else:
             # Detect changed regions and update partially
             print("Subsequent image - detecting changed regions")
