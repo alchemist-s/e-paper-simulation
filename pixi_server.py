@@ -255,16 +255,11 @@ async def update_epd_partial(image, regions):
             # Crop the region from the full image
             region_image = image.crop((x_min, y_min, x_max, y_max))
 
-            # Convert to buffer
-            img = region_image.convert("1")
-            buf = bytearray(img.tobytes("raw"))
-
-            # Invert the bytes (same as getbuffer does)
-            for i in range(len(buf)):
-                buf[i] ^= 0xFF
+            # Use the EPD's getbuffer method instead of manual buffer creation
+            buffer = epd.getbuffer(region_image)
 
             # Update the region
-            epd.display_Partial(buf, x_min, y_min, x_max, y_max)
+            epd.display_Partial(buffer, x_min, y_min, x_max, y_max)
             logger.info(f"Updated region: ({x_min},{y_min}) to ({x_max},{y_max})")
 
         return True
@@ -292,6 +287,10 @@ async def receive_pixi_image(request: PixiImageRequest):
     global previous_image, is_initialized
 
     try:
+        logger.info(
+            f"Received image request. Mock mode: {MOCK_MODE}, EPD initialized: {is_initialized}"
+        )
+
         # Decode base64 image data
         image_data = request.image
         if "," in image_data:
@@ -319,12 +318,17 @@ async def receive_pixi_image(request: PixiImageRequest):
             }
         elif previous_image is None:
             # First image display
+            logger.info("First image - using full display update")
             await display_first_image(epd_image)
         else:
             # Detect changed regions and update partially
+            logger.info("Subsequent image - detecting changed regions")
             changed_regions = detect_changed_regions(epd_image, previous_image)
 
             if changed_regions:
+                logger.info(
+                    f"Found {len(changed_regions)} changed regions, updating display"
+                )
                 await update_epd_partial(epd_image, changed_regions)
                 previous_image = epd_image.copy()
                 logger.info(f"Updated {len(changed_regions)} regions on e-paper")
@@ -334,6 +338,7 @@ async def receive_pixi_image(request: PixiImageRequest):
         return {
             "status": "success",
             "filename": filename,
+            "mock_mode": MOCK_MODE,
             "epd_updated": (
                 is_initialized and len(changed_regions) > 0
                 if "changed_regions" in locals()
@@ -356,9 +361,11 @@ async def get_epd_status():
     """Get e-paper display status"""
     return {
         "epd_available": EPD_AVAILABLE,
+        "mock_mode": MOCK_MODE,
         "is_initialized": is_initialized,
         "display_dimensions": f"{EPD_WIDTH}x{EPD_HEIGHT}",
         "previous_image_exists": previous_image is not None,
+        "epd_type": "MockEPD" if MOCK_MODE else "Real EPD",
     }
 
 
