@@ -324,12 +324,11 @@ def main():
 
         # Display images
         if previous_epd_image is None:
-            # First image display - use full display method with blank red buffer
-            print("First image - using full display method")
-            buffer = epd.getbuffer(new_epd_image)
-            # Create a blank red buffer (no red content) - same as counter example
-            red_buffer = [0x00] * (int(EPD_WIDTH / 8) * EPD_HEIGHT)
-            epd.display(buffer, red_buffer)
+            # First image display - use partial display method since we're using init_part()
+            print("First image - using partial display method for full screen")
+            # Create a full-screen region
+            full_region = [(0, 0, EPD_WIDTH, EPD_HEIGHT)]
+            update_epd_partial(epd, new_epd_image, full_region)
             print("First image displayed successfully")
         else:
             # Detect changed regions and update partially
