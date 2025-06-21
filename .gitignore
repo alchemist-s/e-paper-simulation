@@ -153,3 +153,6 @@ Thumbs.db
 # node-epd-lib
 node-epd-lib/node_modules/
 node-epd-lib/package-lock.json
+
+# node_modules
+node_modules/
