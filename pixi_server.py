@@ -149,18 +149,15 @@ async def receive_pixi_image(request: PixiImageRequest):
             else:
                 logger.info(f"Calling EPD updater with first image: {filename}")
 
-            # Run the subprocess
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, cwd=os.getcwd()
-            )
+            # Run the subprocess with real-time output
+            logger.info("Starting EPD updater...")
+            result = subprocess.run(cmd, cwd=os.getcwd())
 
             if result.returncode == 0:
                 logger.info("EPD updater completed successfully")
-                logger.info(f"EPD updater output: {result.stdout}")
                 epd_updated = True
             else:
                 logger.error(f"EPD updater failed with return code {result.returncode}")
-                logger.error(f"EPD updater stderr: {result.stderr}")
                 epd_updated = False
 
         except Exception as e:
