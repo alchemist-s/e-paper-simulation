@@ -212,6 +212,46 @@ def display_first_image(epd, epd_image):
     print("First image displayed on e-paper")
 
 
+def merge_regions(regions, merge_distance=32):
+    """Merge regions that are close together or overlapping"""
+    if not regions:
+        return []
+
+    if len(regions) == 1:
+        return regions
+
+    # Sort regions by x coordinate
+    sorted_regions = sorted(regions, key=lambda r: r[0])
+
+    merged = []
+    current = list(sorted_regions[0])
+
+    for x_min, y_min, x_max, y_max in sorted_regions[1:]:
+        # Check if this region overlaps or is close to current region
+        if (
+            x_min <= current[2] + merge_distance
+            and x_max >= current[0] - merge_distance
+            and y_min <= current[3] + merge_distance
+            and y_max >= current[1] - merge_distance
+        ):
+
+            # Merge regions
+            current[0] = min(current[0], x_min)  # x_min
+            current[1] = min(current[1], y_min)  # y_min
+            current[2] = max(current[2], x_max)  # x_max
+            current[3] = max(current[3], y_max)  # y_max
+        else:
+            # No overlap, add current region and start new one
+            merged.append(tuple(current))
+            current = [x_min, y_min, x_max, y_max]
+
+    # Add the last region
+    merged.append(tuple(current))
+
+    print(f"Merged {len(regions)} regions into {len(merged)} regions")
+    return merged
+
+
 def main():
     """Main function to handle image updates"""
     if len(sys.argv) < 2:
@@ -273,9 +313,28 @@ def main():
             changed_regions = detect_changes(new_epd_image, previous_epd_image)
 
             if changed_regions:
-                print(f"Found {len(changed_regions)} changed regions, updating display")
-                update_epd_partial(epd, new_epd_image, changed_regions)
-                print(f"Updated {len(changed_regions)} regions on e-paper")
+                # Check if we should do full update instead of partial updates
+                total_changed_area = sum(
+                    (r[2] - r[0]) * (r[3] - r[1]) for r in changed_regions
+                )
+                total_display_area = EPD_WIDTH * EPD_HEIGHT
+                changed_percentage = total_changed_area / total_display_area
+
+                if (
+                    len(changed_regions) > 3 or changed_percentage > 0.2
+                ):  # More than 3 regions or >20% changed
+                    print(
+                        f"Large change detected ({len(changed_regions)} regions, {changed_percentage:.1%} of display), using full update"
+                    )
+                    display_first_image(epd, new_epd_image)
+                else:
+                    # Merge nearby regions to reduce number of partial updates
+                    merged_regions = merge_regions(changed_regions)
+                    print(
+                        f"Found {len(changed_regions)} changed regions, merged to {len(merged_regions)}, updating display"
+                    )
+                    update_epd_partial(epd, new_epd_image, merged_regions)
+                    print(f"Updated {len(merged_regions)} regions on e-paper")
             else:
                 print("No changes detected, skipping e-paper update")
 
