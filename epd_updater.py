@@ -167,12 +167,6 @@ def filter_regions(regions):
 def update_epd_partial(epd, image, regions):
     """Update specific regions of the e-paper display"""
     try:
-        # Get buffer for the full image
-        buffer = epd.getbuffer(image)
-        print(f"Buffer size: {len(buffer)} bytes")
-        print(f"Buffer first 10 bytes: {buffer[:10]}")
-        print(f"Buffer last 10 bytes: {buffer[-10:]}")
-
         # Update each changed region
         for i, (x_min, y_min, x_max, y_max) in enumerate(regions):
             print(
@@ -202,7 +196,18 @@ def update_epd_partial(epd, image, regions):
 
             print(f"Aligned region: ({x_min},{y_min}) to ({x_max},{y_max})")
 
-            # Update the region using the full image buffer
+            # Crop the region from the full image
+            region_image = image.crop((x_min, y_min, x_max, y_max))
+
+            # Convert to 1-bit and get buffer
+            region_image_1bit = region_image.convert("1")
+            buffer = bytearray(region_image_1bit.tobytes("raw"))
+
+            # Invert the bytes (same as getbuffer does)
+            for j in range(len(buffer)):
+                buffer[j] ^= 0xFF
+
+            # Update the region using display_Partial
             epd.display_Partial(buffer, x_min, y_min, x_max, y_max)
             print(f"Updated region: ({x_min},{y_min}) to ({x_max},{y_max})")
 
@@ -213,29 +218,6 @@ def update_epd_partial(epd, image, regions):
 
         traceback.print_exc()
         return False
-
-
-def update_epd_partial_alternative(epd, image, regions):
-    """Update specific regions of the e-paper display using alternative method"""
-    for i, (x_start, y_start, x_end, y_end) in enumerate(regions):
-        print(
-            f"Updating region {i+1}/{len(regions)}: ({x_start}, {y_start}) to ({x_end}, {y_end})"
-        )
-
-        # Crop the region from the full image
-        region_image = image.crop((x_start, y_start, x_end, y_end))
-
-        # Convert to 1-bit and get buffer
-        region_image_1bit = region_image.convert("1")
-        buffer = bytearray(region_image_1bit.tobytes("raw"))
-
-        # Invert the bytes (same as getbuffer does)
-        for j in range(len(buffer)):
-            buffer[j] ^= 0xFF
-
-        # Update the region
-        epd.display_Partial(buffer, x_start, y_start, x_end, y_end)
-        print(f"Region {i+1} updated successfully")
 
 
 def merge_regions(regions, merge_distance=32):
@@ -331,20 +313,24 @@ def main():
         print("Initializing e-paper display...")
         epd = EPD()
 
-        # Re-initialize the display for each use (SPI connection needs to be fresh)
-        if epd.init() == 0:
-            print("EPD initialized successfully")
+        # Initialize for partial updates (like the working counter example)
+        if epd.init_part() == 0:
+            print("EPD initialized successfully for partial updates")
+            epd.Clear()
+            print("Display cleared successfully")
         else:
             print("Failed to initialize EPD")
             sys.exit(1)
 
         # Display images
         if previous_epd_image is None:
-            # First image display - use partial update method to avoid red
-            print("First image - using partial update method")
-            # Create a full-size region for the first display
-            full_region = [(0, 0, EPD_WIDTH, EPD_HEIGHT)]
-            update_epd_partial_alternative(epd, new_epd_image, full_region)
+            # First image display - use full display method with blank red buffer
+            print("First image - using full display method")
+            buffer = epd.getbuffer(new_epd_image)
+            # Create a blank red buffer (no red content) - same as counter example
+            red_buffer = [0x00] * (int(EPD_WIDTH / 8) * EPD_HEIGHT)
+            epd.display(buffer, red_buffer)
+            print("First image displayed successfully")
         else:
             # Detect changed regions and update partially
             print("Subsequent image - detecting changed regions")
@@ -359,18 +345,9 @@ def main():
                     f"Merged {len(changed_regions)} regions into {len(merged_regions)} regions"
                 )
 
-                # Try alternative method first
-                try:
-                    update_epd_partial_alternative(epd, new_epd_image, merged_regions)
-                    print(
-                        f"Updated {len(merged_regions)} regions on e-paper (alternative method)"
-                    )
-                except Exception as e:
-                    print(f"Alternative method failed: {e}, trying original method")
-                    update_epd_partial(epd, new_epd_image, merged_regions)
-                    print(
-                        f"Updated {len(merged_regions)} regions on e-paper (original method)"
-                    )
+                # Update the regions using partial display
+                update_epd_partial(epd, new_epd_image, merged_regions)
+                print(f"Updated {len(merged_regions)} regions on e-paper")
             else:
                 print("No changes detected, skipping e-paper update")
 
