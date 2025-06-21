@@ -89,7 +89,7 @@ class PixiImageRequest(BaseModel):
 
 
 @asynccontextmanager
-async def lifespan():
+async def lifespan(_: FastAPI):
     """Initialize e-paper display on app startup"""
     global epd, is_initialized
     logger.info("Starting up Pixi server...")
