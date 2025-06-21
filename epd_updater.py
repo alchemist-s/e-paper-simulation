@@ -216,13 +216,9 @@ def update_epd_partial(epd, image, regions):
 
 
 def update_epd_partial_alternative(epd, image, regions):
-    """Alternative partial update method using full image buffer"""
+    """Alternative partial update method using region-specific buffers like the counter script"""
     try:
-        # Get buffer for the full image (EPD requires 800x480)
-        buffer = epd.getbuffer(image)
-        print(f"Full buffer size: {len(buffer)} bytes")
-
-        # Update each changed region using the full buffer
+        # Update each changed region with its own buffer
         for i, (x_min, y_min, x_max, y_max) in enumerate(regions):
             print(
                 f"Alternative update region {i+1}/{len(regions)}: ({x_min},{y_min}) to ({x_max},{y_max})"
@@ -234,7 +230,7 @@ def update_epd_partial_alternative(epd, image, regions):
             x_max = int(x_max)
             y_max = int(y_max)
 
-            # Align region boundaries to 8-byte boundaries for e-paper
+            # Apply the same boundary adjustments as the counter script
             if (
                 (x_min % 8 + x_max % 8 == 8 and x_min % 8 > x_max % 8)
                 or x_min % 8 + x_max % 8 == 0
@@ -251,8 +247,21 @@ def update_epd_partial_alternative(epd, image, regions):
 
             print(f"Aligned region: ({x_min},{y_min}) to ({x_max},{y_max})")
 
-            # Update the region using the full image buffer
-            epd.display_Partial(buffer, x_min, y_min, x_max, y_max)
+            # Crop the region from the full image
+            region_image = image.crop((x_min, y_min, x_max, y_max))
+
+            # Convert to buffer using the same method as counter script
+            img = region_image.convert("1")
+            buf = bytearray(img.tobytes("raw"))
+
+            # Invert the bytes (same as getbuffer does)
+            for i in range(len(buf)):
+                buf[i] ^= 0xFF
+
+            print(f"Region buffer size: {len(buf)} bytes")
+
+            # Update the region using the region buffer
+            epd.display_Partial(buf, x_min, y_min, x_max, y_max)
             print(f"Updated region: ({x_min},{y_min}) to ({x_max},{y_max})")
 
         return True
