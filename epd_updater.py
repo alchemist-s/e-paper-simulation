@@ -169,16 +169,12 @@ def main():
     try:
         from waveshare_epd.epd7in5b_V2 import EPD
 
-        print("Initializing e-paper display...")
+        print("Connecting to e-paper display...")
         epd = EPD()
 
-        # Initialize for partial updates
-        if epd.init_part() != 0:
-            print("Failed to initialize e-paper display for partial updates")
-            sys.exit(1)
-
-        epd.Clear()
-        print("E-paper display initialized successfully")
+        # The display should already be initialized from server startup
+        # Just wake it up if needed
+        print("Display should already be initialized from server startup")
 
         # Display images
         if previous_epd_image is None:
@@ -197,9 +193,8 @@ def main():
             else:
                 print("No changes detected, skipping e-paper update")
 
-        # Put display to sleep
-        epd.sleep()
-        print("Display put to sleep")
+        # Don't put display to sleep - let the server manage that
+        print("Update completed - display remains active")
 
     except Exception as e:
         print(f"Error with e-paper: {e}")

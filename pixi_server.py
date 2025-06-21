@@ -45,7 +45,28 @@ app.add_middleware(
 async def startup_event():
     """Initialize on app startup"""
     global previous_image_filename
+
+    logger.info("=== Starting up Pixi server... ===")
     logger.info("Server ready to receive images")
+
+    # Initialize the EPD display
+    try:
+        logger.info("Initializing EPD display...")
+        result = subprocess.run(
+            ["python3", "epd_init.py"], capture_output=True, text=True, cwd=os.getcwd()
+        )
+
+        if result.returncode == 0:
+            logger.info("EPD display initialized successfully")
+            logger.info(f"EPD init output: {result.stdout}")
+        else:
+            logger.error(
+                f"EPD initialization failed with return code {result.returncode}"
+            )
+            logger.error(f"EPD init stderr: {result.stderr}")
+
+    except Exception as e:
+        logger.error(f"Error initializing EPD display: {e}")
 
 
 @app.on_event("shutdown")
