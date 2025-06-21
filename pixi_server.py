@@ -25,16 +25,13 @@ try:
     from waveshare_epd.epd7in5b_V2 import EPD
 
     EPD_AVAILABLE = True
-    MOCK_MODE = False
 except ImportError as e:
     EPD_AVAILABLE = False
-    MOCK_MODE = True
-    logging.warning(f"Waveshare EPD library not available: {e}")
+    logging.error(f"Waveshare EPD library not available: {e}")
 except RuntimeError as e:
-    # GPIO error - run in mock mode
+    # GPIO error
     EPD_AVAILABLE = False
-    MOCK_MODE = True
-    logging.warning(f"GPIO error, running in mock mode: {e}")
+    logging.error(f"GPIO error: {e}")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -52,36 +49,6 @@ is_initialized = False
 # E-Paper display dimensions (for epd7in5b_V2)
 EPD_WIDTH = 800
 EPD_HEIGHT = 480
-
-
-# Mock EPD class for testing without hardware
-class MockEPD:
-    def __init__(self):
-        self.width = 800
-        self.height = 480
-        self.partFlag = 1
-
-    def init_part(self):
-        logging.info("Mock EPD: Initialized for partial updates")
-        return 0
-
-    def Clear(self):
-        logging.info("Mock EPD: Display cleared")
-
-    def getbuffer(self, image):
-        logging.info("Mock EPD: Got buffer for image")
-        return [0x00] * (int(self.width / 8) * self.height)
-
-    def display(self, buffer, red_buffer):
-        logging.info("Mock EPD: Full display updated")
-
-    def display_Partial(self, buffer, x_min, y_min, x_max, y_max):
-        logging.info(
-            f"Mock EPD: Partial update at ({x_min},{y_min}) to ({x_max},{y_max})"
-        )
-
-    def sleep(self):
-        logging.info("Mock EPD: Display sleeping")
 
 
 class PixiImageRequest(BaseModel):
@@ -121,12 +88,6 @@ app.add_middleware(
 async def init_epd():
     """Initialize the e-paper display"""
     global epd, is_initialized
-
-    if MOCK_MODE:
-        logger.info("Running in mock mode - no actual hardware")
-        epd = MockEPD()
-        is_initialized = True
-        return True
 
     if not EPD_AVAILABLE:
         logger.error("EPD library not available")
@@ -287,9 +248,7 @@ async def receive_pixi_image(request: PixiImageRequest):
     global previous_image, is_initialized
 
     try:
-        logger.info(
-            f"Received image request. Mock mode: {MOCK_MODE}, EPD initialized: {is_initialized}"
-        )
+        logger.info(f"Received image request. EPD initialized: {is_initialized}")
 
         # Decode base64 image data
         image_data = request.image
@@ -338,7 +297,6 @@ async def receive_pixi_image(request: PixiImageRequest):
         return {
             "status": "success",
             "filename": filename,
-            "mock_mode": MOCK_MODE,
             "epd_updated": (
                 is_initialized and len(changed_regions) > 0
                 if "changed_regions" in locals()
@@ -361,11 +319,10 @@ async def get_epd_status():
     """Get e-paper display status"""
     return {
         "epd_available": EPD_AVAILABLE,
-        "mock_mode": MOCK_MODE,
         "is_initialized": is_initialized,
         "display_dimensions": f"{EPD_WIDTH}x{EPD_HEIGHT}",
         "previous_image_exists": previous_image is not None,
-        "epd_type": "MockEPD" if MOCK_MODE else "Real EPD",
+        "epd_type": "Real EPD",
     }
 
 
