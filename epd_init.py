@@ -15,9 +15,9 @@ def main():
         print("Initializing e-paper display...")
         epd = EPD()
 
-        # Initialize for full display (not partial updates)
-        if epd.init() == 0:
-            print("EPD initialized successfully")
+        # Initialize for partial updates (like the counter script)
+        if epd.init_part() == 0:
+            print("EPD initialized successfully for partial updates")
             epd.Clear()
             print("Display cleared successfully")
             print("EPD initialization completed successfully")
