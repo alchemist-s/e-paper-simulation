@@ -313,28 +313,9 @@ def main():
             changed_regions = detect_changes(new_epd_image, previous_epd_image)
 
             if changed_regions:
-                # Check if we should do full update instead of partial updates
-                total_changed_area = sum(
-                    (r[2] - r[0]) * (r[3] - r[1]) for r in changed_regions
-                )
-                total_display_area = EPD_WIDTH * EPD_HEIGHT
-                changed_percentage = total_changed_area / total_display_area
-
-                if (
-                    len(changed_regions) > 3 or changed_percentage > 0.2
-                ):  # More than 3 regions or >20% changed
-                    print(
-                        f"Large change detected ({len(changed_regions)} regions, {changed_percentage:.1%} of display), using full update"
-                    )
-                    display_first_image(epd, new_epd_image)
-                else:
-                    # Merge nearby regions to reduce number of partial updates
-                    merged_regions = merge_regions(changed_regions)
-                    print(
-                        f"Found {len(changed_regions)} changed regions, merged to {len(merged_regions)}, updating display"
-                    )
-                    update_epd_partial(epd, new_epd_image, merged_regions)
-                    print(f"Updated {len(merged_regions)} regions on e-paper")
+                print(f"Found {len(changed_regions)} changed regions, updating display")
+                update_epd_partial(epd, new_epd_image, changed_regions)
+                print(f"Updated {len(changed_regions)} regions on e-paper")
             else:
                 print("No changes detected, skipping e-paper update")
 

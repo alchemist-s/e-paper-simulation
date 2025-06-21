@@ -24,12 +24,10 @@ let textRef: Text | null = null;
 
 const sendToServer = async (): Promise<void> => {
   try {
-    if (!pixiApp.value) return;
-    const base64Image = await pixiApp.value.renderer.extract.base64({
-      target: pixiApp.value.stage as Container,
-      clearColor: "#000000",
-      antialias: true,
-    });
+    if (!canvasRef.value) return;
+
+    // Use canvas toDataURL instead of Pixi's renderer.extract
+    const base64Image = canvasRef.value.toDataURL("image/png");
 
     const response = await fetch(serverUrl.value, {
       method: "POST",
