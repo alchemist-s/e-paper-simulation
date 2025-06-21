@@ -6,6 +6,7 @@ import io
 import base64
 import logging
 import numpy as np
+import asyncio
 from datetime import datetime
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -252,6 +253,20 @@ def update_epd_partial(image, regions):
         return False
 
 
+def display_first_image(epd_image):
+    """Display the first image on e-paper"""
+    global epd, previous_image
+
+    logger.info("Creating buffer for first display...")
+    buffer = epd.getbuffer(epd_image)
+    red_buffer = [0x00] * (int(EPD_WIDTH / 8) * EPD_HEIGHT)
+    logger.info(f"Buffer size: {len(buffer)}, Red buffer size: {len(red_buffer)}")
+    logger.info("Sending to e-paper display...")
+    epd.display(buffer, red_buffer)
+    previous_image = epd_image.copy()
+    logger.info("First image displayed on e-paper")
+
+
 @app.post("/")
 async def receive_pixi_image(request: PixiImageRequest):
     global previous_image, is_initialized
@@ -277,17 +292,8 @@ async def receive_pixi_image(request: PixiImageRequest):
         # Initialize e-paper display on first image
         if not is_initialized:
             if init_epd():
-                # First full display
-                logger.info("Creating buffer for first display...")
-                buffer = epd.getbuffer(epd_image)
-                red_buffer = [0x00] * (int(EPD_WIDTH / 8) * EPD_HEIGHT)
-                logger.info(
-                    f"Buffer size: {len(buffer)}, Red buffer size: {len(red_buffer)}"
-                )
-                logger.info("Sending to e-paper display...")
-                epd.display(buffer, red_buffer)
-                previous_image = epd_image.copy()
-                logger.info("First image displayed on e-paper")
+                # First full display - run in thread pool
+                await asyncio.to_thread(display_first_image, epd_image)
             else:
                 logger.error("Failed to initialize e-paper display")
         else:
@@ -295,11 +301,9 @@ async def receive_pixi_image(request: PixiImageRequest):
             changed_regions = detect_changed_regions(epd_image, previous_image)
 
             if changed_regions:
-                if update_epd_partial(epd_image, changed_regions):
-                    previous_image = epd_image.copy()
-                    logger.info(f"Updated {len(changed_regions)} regions on e-paper")
-                else:
-                    logger.error("Failed to update e-paper display")
+                await asyncio.to_thread(update_epd_partial, epd_image, changed_regions)
+                previous_image = epd_image.copy()
+                logger.info(f"Updated {len(changed_regions)} regions on e-paper")
             else:
                 logger.info("No changes detected, skipping e-paper update")
 
