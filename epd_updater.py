@@ -199,13 +199,12 @@ def update_epd_partial(epd, image, regions):
             # Crop the region from the full image
             region_image = image.crop((x_min, y_min, x_max, y_max))
 
-            # Convert to 1-bit and get buffer
+            # Convert to 1-bit and get buffer (for partial updates, don't invert bytes)
             region_image_1bit = region_image.convert("1")
             buffer = bytearray(region_image_1bit.tobytes("raw"))
 
-            # Invert the bytes (same as getbuffer does)
-            for j in range(len(buffer)):
-                buffer[j] ^= 0xFF
+            # Note: display_Partial() doesn't invert bytes back like display() does
+            # so we don't invert them here
 
             # Update the region using display_Partial
             epd.display_Partial(buffer, x_min, y_min, x_max, y_max)

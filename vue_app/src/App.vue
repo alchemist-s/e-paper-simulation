@@ -33,24 +33,8 @@ let textRef: Text | null = null;
 const sendToServer = async (): Promise<void> => {
   try {
     if (!canvasRef.value || !pixiApp.value) return;
-
-    // Force a render before capturing
     pixiApp.value.render();
-
-    // Use canvas toDataURL instead of Pixi's renderer.extract
     const base64Image = canvasRef.value.toDataURL("image/png");
-
-    // Debug: Check if canvas has content
-    console.log(
-      "Canvas dimensions:",
-      canvasRef.value.width,
-      "x",
-      canvasRef.value.height
-    );
-    console.log("Base64 image length:", base64Image.length);
-    console.log("Base64 starts with:", base64Image.substring(0, 50));
-
-    // Set debug image
     debugImage.value = base64Image;
 
     await fetch(serverUrl.value, {
@@ -60,14 +44,12 @@ const sendToServer = async (): Promise<void> => {
       },
       body: JSON.stringify({ image: base64Image }),
     });
-    console.log("Canvas captured successfully");
   } catch (error) {
     console.error("Error sending to server:", error);
   }
 };
 
 const changeText = (): void => {
-  // add random 4 letter word to the text
   const randomWord = Math.random().toString(36).substring(2, 6);
   textToDisplay.value = "Hello PixiJS! " + randomWord;
   textRef!.text = textToDisplay.value;
@@ -75,37 +57,19 @@ const changeText = (): void => {
 
 onMounted(async () => {
   if (!canvasRef.value) return;
-
-  console.log("Initializing PixiJS...");
-  console.log("Canvas element:", canvasRef.value);
-  console.log(
-    "Canvas dimensions before init:",
-    canvasRef.value.width,
-    "x",
-    canvasRef.value.height
-  );
-
   const app = new Application();
   await app.init({
     resizeTo: canvasRef.value,
     canvas: canvasRef.value,
+    background: "#ffffff",
   });
-
-  console.log("PixiJS initialized");
-  console.log("App canvas:", app.canvas);
-  console.log(
-    "Canvas dimensions after init:",
-    canvasRef.value.width,
-    "x",
-    canvasRef.value.height
-  );
 
   pixiApp.value = app;
 
   textRef = new Text({
     text: textToDisplay.value,
     style: {
-      fill: "#ffffff",
+      fill: "#000000",
       fontSize: 36,
     },
     anchor: 0.5,
