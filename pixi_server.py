@@ -69,6 +69,10 @@ class PixiImageRequest(BaseModel):
 async def lifespan(_: FastAPI):
     """Initialize e-paper display on app startup"""
     global epd, is_initialized
+
+    # Use print for immediate visibility
+    print("=== LIFESPAN FUNCTION CALLED ===")
+
     logger.info("=== Starting up Pixi server... ===")
     logger.info("Lifespan function called")
 
