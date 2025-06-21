@@ -2,11 +2,11 @@
 # -*- coding:utf-8 -*-
 
 import os
+from contextlib import asynccontextmanager
 import io
 import base64
 import logging
 import numpy as np
-import asyncio
 from datetime import datetime
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -40,16 +40,6 @@ except RuntimeError as e:
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Pixi Image Receiver")
-
-# Add CORS middleware to allow Vue app to connect
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 OUTPUT_DIR = "pixi_images"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -96,6 +86,36 @@ class MockEPD:
 
 class PixiImageRequest(BaseModel):
     image: str  # Base64 encoded PNG image
+
+
+@asynccontextmanager
+async def lifespan():
+    """Initialize e-paper display on app startup"""
+    global epd, is_initialized
+    logger.info("Starting up Pixi server...")
+
+    if await init_epd():
+        logger.info("E-paper display initialized successfully on startup")
+    else:
+        logger.warning("Failed to initialize e-paper display on startup")
+
+    yield
+
+    logger.info("Shutting down Pixi server...")
+    if epd:
+        epd.sleep()
+
+
+app = FastAPI(title="Pixi Image Receiver", lifespan=lifespan)
+
+# Add CORS middleware to allow Vue app to connect
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 async def init_epd():
@@ -265,18 +285,6 @@ async def display_first_image(epd_image):
     epd.display(buffer, red_buffer)
     previous_image = epd_image.copy()
     logger.info("First image displayed on e-paper")
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize e-paper display on app startup"""
-    global epd, is_initialized
-    logger.info("Starting up Pixi server...")
-
-    if await init_epd():
-        logger.info("E-paper display initialized successfully on startup")
-    else:
-        logger.warning("Failed to initialize e-paper display on startup")
 
 
 @app.post("/")
