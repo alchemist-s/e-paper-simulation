@@ -29,19 +29,19 @@ def prepare_image_for_epd(image):
     return image
 
 
-def detect_changed_regions(new_image, old_image):
-    """Detect regions that have changed between two images"""
+def detect_changes(new_image, old_image):
+    """Detect changed regions between two images"""
     if old_image is None:
-        # First image - return full display area
+        # First update - return full image region
         return [(0, 0, EPD_WIDTH, EPD_HEIGHT)]
 
-    # Ensure both images are the same size and format
+    # Ensure both images are the same size and mode
+    new_image = prepare_image_for_epd(new_image)
+    old_image = prepare_image_for_epd(old_image)
+
+    # Convert to numpy arrays for faster processing
     new_array = np.array(new_image)
     old_array = np.array(old_image)
-
-    if new_array.shape != old_array.shape:
-        # Size changed - return full area
-        return [(0, 0, EPD_WIDTH, EPD_HEIGHT)]
 
     # Find differences
     diff_array = new_array != old_array
@@ -50,28 +50,62 @@ def detect_changed_regions(new_image, old_image):
         # No changes detected
         return []
 
-    # Find connected regions
-    regions = find_connected_regions(diff_array)
-    return regions
+    # Fast clustering approach - find changed pixels and group them
+    changed_pixels = np.where(diff_array)
+    if len(changed_pixels[0]) == 0:
+        return []
+
+    # Convert to list of (y, x) coordinates
+    coords = list(zip(changed_pixels[0], changed_pixels[1]))
+
+    # Simple distance-based clustering
+    regions = fast_cluster_regions(coords)
+
+    # Filter and limit regions
+    filtered_regions = filter_regions(regions)
+
+    print(f"Found {len(filtered_regions)} regions from {len(coords)} changed pixels")
+    return filtered_regions
 
 
-def find_connected_regions(diff_array):
-    """Find connected regions of changed pixels"""
-    from scipy import ndimage
-
-    # Label connected components
-    labeled_array, num_features = ndimage.label(diff_array)
+def fast_cluster_regions(coords, max_distance=50):
+    """Fast clustering of coordinates into regions"""
+    if not coords:
+        return []
 
     regions = []
-    for i in range(1, num_features + 1):
-        # Find bounding box of this region
-        coords = np.where(labeled_array == i)
-        if len(coords[0]) > 0:
-            y_min, y_max = coords[0].min(), coords[0].max()
-            x_min, x_max = coords[1].min(), coords[1].max()
+    used = set()
 
-            # Add some padding around the region
-            padding = 8
+    for i, (y, x) in enumerate(coords):
+        if i in used:
+            continue
+
+        # Start a new region
+        region_coords = [(y, x)]
+        used.add(i)
+
+        # Find nearby pixels
+        for j, (y2, x2) in enumerate(coords):
+            if j in used:
+                continue
+
+            # Check if this pixel is close to any pixel in current region
+            for ry, rx in region_coords:
+                distance = ((y2 - ry) ** 2 + (x2 - rx) ** 2) ** 0.5
+                if distance <= max_distance:
+                    region_coords.append((y2, x2))
+                    used.add(j)
+                    break
+
+        # Calculate bounding box for this region
+        if region_coords:
+            ys = [c[0] for c in region_coords]
+            xs = [c[1] for c in region_coords]
+            y_min, y_max = min(ys), max(ys)
+            x_min, x_max = min(xs), max(xs)
+
+            # Add padding
+            padding = 16
             x_min = max(0, x_min - padding)
             x_max = min(EPD_WIDTH - 1, x_max + padding)
             y_min = max(0, y_min - padding)
@@ -79,17 +113,16 @@ def find_connected_regions(diff_array):
 
             regions.append((x_min, y_min, x_max, y_max))
 
-    # Filter and merge regions
-    return filter_and_merge_regions(regions)
+    return regions
 
 
-def filter_and_merge_regions(regions):
-    """Filter out small regions and merge nearby ones"""
+def filter_regions(regions):
+    """Filter regions by size and limit count"""
     if not regions:
         return []
 
-    # Filter out regions that are too small
-    min_size = 32  # Minimum region size
+    # Filter by minimum size
+    min_size = 32
     filtered = []
     for x_min, y_min, x_max, y_max in regions:
         width = x_max - x_min
@@ -100,15 +133,10 @@ def filter_and_merge_regions(regions):
     # Sort by area (largest first)
     filtered.sort(key=lambda r: (r[2] - r[0]) * (r[3] - r[1]), reverse=True)
 
-    # Limit number of regions to prevent excessive updates
-    max_regions = 10
+    # Limit to top 5 regions
+    max_regions = 5
     if len(filtered) > max_regions:
         filtered = filtered[:max_regions]
-
-    # If we still have too many small regions, just return the full area
-    if len(filtered) > 5:
-        print(f"Too many regions ({len(filtered)}), using full display update")
-        return [(0, 0, EPD_WIDTH, EPD_HEIGHT)]
 
     return filtered
 
@@ -231,7 +259,7 @@ def main():
         else:
             # Detect changed regions and update partially
             print("Subsequent image - detecting changed regions")
-            changed_regions = detect_changed_regions(new_epd_image, previous_epd_image)
+            changed_regions = detect_changes(new_epd_image, previous_epd_image)
 
             if changed_regions:
                 print(f"Found {len(changed_regions)} changed regions, updating display")

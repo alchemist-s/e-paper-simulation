@@ -45,7 +45,7 @@ const sendToServer = async (): Promise<void> => {
 };
 
 const changeText = (): void => {
-  textToDisplay.value = "Hello PixiJS! " + "Test";
+  textToDisplay.value = "Hello PixiJS! " + "Four";
   textRef!.text = textToDisplay.value;
 };
 
