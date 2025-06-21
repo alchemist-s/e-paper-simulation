@@ -20,10 +20,6 @@ def main():
             print("EPD initialized successfully")
             epd.Clear()
             print("Display cleared successfully")
-
-            # Put display to sleep
-            epd.sleep()
-            print("Display put to sleep")
             print("EPD initialization completed successfully")
         else:
             print("Failed to initialize EPD")

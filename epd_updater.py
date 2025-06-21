@@ -172,9 +172,8 @@ def main():
         print("Connecting to e-paper display...")
         epd = EPD()
 
-        # The display should already be initialized from server startup
-        # Just wake it up if needed
-        print("Display should already be initialized from server startup")
+        # Display should already be initialized from server startup
+        print("Display already initialized from server startup")
 
         # Display images
         if previous_epd_image is None:
@@ -193,7 +192,7 @@ def main():
             else:
                 print("No changes detected, skipping e-paper update")
 
-        # Don't put display to sleep - let the server manage that
+        # Keep display awake for faster subsequent updates
         print("Update completed - display remains active")
 
     except Exception as e:

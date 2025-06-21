@@ -41,6 +41,20 @@ app.add_middleware(
 )
 
 
+def clear_pixi_images_directory():
+    """Clear all files from the pixi_images directory"""
+    try:
+        logger.info("Clearing pixi_images directory...")
+        for filename in os.listdir(OUTPUT_DIR):
+            file_path = os.path.join(OUTPUT_DIR, filename)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+                logger.info(f"Removed: {filename}")
+        logger.info("pixi_images directory cleared")
+    except Exception as e:
+        logger.error(f"Error clearing pixi_images directory: {e}")
+
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize on app startup"""
@@ -48,6 +62,9 @@ async def startup_event():
 
     logger.info("=== Starting up Pixi server... ===")
     logger.info("Server ready to receive images")
+
+    # Clear the pixi_images directory
+    clear_pixi_images_directory()
 
     # Initialize the EPD display
     try:
@@ -76,6 +93,27 @@ async def startup_event():
 async def shutdown_event():
     """Cleanup on app shutdown"""
     logger.info("=== Shutting down Pixi server... ===")
+
+    # Clear the pixi_images directory
+    clear_pixi_images_directory()
+
+    # Put EPD display to sleep
+    try:
+        logger.info("Putting EPD display to sleep...")
+        result = subprocess.run(
+            ["sudo", "python3", "epd_sleep.py"],
+            capture_output=True,
+            text=True,
+            cwd=os.getcwd(),
+        )
+
+        if result.returncode == 0:
+            logger.info("EPD display put to sleep successfully")
+        else:
+            logger.error(f"Failed to put EPD to sleep: {result.stderr}")
+
+    except Exception as e:
+        logger.error(f"Error putting EPD to sleep: {e}")
 
 
 @app.post("/")
