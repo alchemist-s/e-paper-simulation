@@ -92,12 +92,25 @@ def init_epd():
 
 def prepare_image_for_epd(image):
     """Convert image to e-paper format (black and white, correct dimensions)"""
+    logger.info(f"Original image size: {image.size}, mode: {image.mode}")
+
     # Resize to e-paper dimensions
     image = image.resize((EPD_WIDTH, EPD_HEIGHT), Image.Resampling.LANCZOS)
+    logger.info(f"Resized image size: {image.size}")
 
     # Convert to 1-bit (black and white)
     if image.mode != "1":
         image = image.convert("1")
+
+    logger.info(f"Final image size: {image.size}, mode: {image.mode}")
+
+    # Save debug image
+    debug_filename = (
+        f"debug_epd_image_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.png"
+    )
+    debug_filepath = os.path.join(OUTPUT_DIR, debug_filename)
+    image.save(debug_filepath)
+    logger.info(f"Saved debug image: {debug_filename}")
 
     return image
 
@@ -228,8 +241,13 @@ async def receive_pixi_image(request: PixiImageRequest):
         if not is_initialized:
             if init_epd():
                 # First full display
+                logger.info("Creating buffer for first display...")
                 buffer = epd.getbuffer(epd_image)
                 red_buffer = [0x00] * (int(EPD_WIDTH / 8) * EPD_HEIGHT)
+                logger.info(
+                    f"Buffer size: {len(buffer)}, Red buffer size: {len(red_buffer)}"
+                )
+                logger.info("Sending to e-paper display...")
                 epd.display(buffer, red_buffer)
                 previous_image = epd_image.copy()
                 logger.info("First image displayed on e-paper")
