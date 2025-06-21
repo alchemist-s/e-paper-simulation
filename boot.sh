@@ -1,10 +1,9 @@
 #!/bin/bash
 
-# Path to your virtual environment
-VENV_PATH="e-paper-env"
+# /home/alshahed/e-paper-simulation/e-paper-env/bin/uvicorn
 
-# Activate the venv
-source "$VENV_PATH/bin/activate"
+# Navigate to your project directory
+cd /home/alshahed/e-paper-simulation
 
-# Run FastAPI server as root (with environment preserved)
-sudo -E uvicorn pixi_server:app --host 0.0.0.0 --port 8000
+# Run uvicorn using full path inside the venv
+sudo /home/alshahed/e-paper-simulation/e-paper-env/bin/uvicorn pixi_server:app --host 0.0.0.0 --port 8000
