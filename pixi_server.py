@@ -20,14 +20,13 @@ try:
     # Add the lib directory to Python path
     lib_path = os.path.join(os.path.dirname(__file__), "lib")
     sys.path.append(lib_path)
-    from waveshare_epd import epd7in5b_V2
+    # Import directly from the file since __init__.py is empty
+    from waveshare_epd.epd7in5b_V2 import EPD
 
     EPD_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     EPD_AVAILABLE = False
-    logging.warning(
-        "Waveshare EPD library not available. Install with: pip install waveshare-epd"
-    )
+    logging.warning(f"Waveshare EPD library not available: {e}")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -70,7 +69,7 @@ def init_epd():
         return False
 
     try:
-        epd = epd7in5b_V2.EPD()
+        epd = EPD()
         # Initialize for partial updates
         if epd.init_part() != 0:
             logger.error("Failed to initialize e-paper display")
