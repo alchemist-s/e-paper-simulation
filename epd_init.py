@@ -15,20 +15,19 @@ def main():
         print("Initializing e-paper display...")
         epd = EPD()
 
-        # Initialize for partial updates
-        if epd.init_part() != 0:
-            print("Failed to initialize e-paper display for partial updates")
+        # Initialize for full display (not partial updates)
+        if epd.init() == 0:
+            print("EPD initialized successfully")
+            epd.Clear()
+            print("Display cleared successfully")
+
+            # Put display to sleep
+            epd.sleep()
+            print("Display put to sleep")
+            print("EPD initialization completed successfully")
+        else:
+            print("Failed to initialize EPD")
             sys.exit(1)
-
-        # Clear the display
-        print("Clearing display...")
-        epd.Clear()
-        print("Display cleared successfully")
-
-        # Put display to sleep
-        epd.sleep()
-        print("Display put to sleep")
-        print("EPD initialization completed successfully")
 
     except Exception as e:
         print(f"Error initializing EPD: {e}")
