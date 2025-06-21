@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from PIL import Image
 import uvicorn
+import subprocess
 
 # Configure logging first
 logging.basicConfig(level=logging.INFO)
@@ -91,6 +92,9 @@ async def startup_event():
     logger.info("Calling init_epd()...")
     if await init_epd():
         logger.info("=== E-paper display initialized successfully on startup ===")
+
+        # lets call test_existing_image.py
+        subprocess.run(["python3", "test_existing_image.py"])
     else:
         logger.warning("=== Failed to initialize e-paper display on startup ===")
 
