@@ -65,32 +65,7 @@ class PixiImageRequest(BaseModel):
     image: str  # Base64 encoded PNG image
 
 
-@asynccontextmanager
-async def lifespan(_: FastAPI):
-    """Initialize e-paper display on app startup"""
-    global epd, is_initialized
-
-    # Use print for immediate visibility
-    print("=== LIFESPAN FUNCTION CALLED ===")
-
-    logger.info("=== Starting up Pixi server... ===")
-    logger.info("Lifespan function called")
-
-    logger.info("Calling init_epd()...")
-    if await init_epd():
-        logger.info("=== E-paper display initialized successfully on startup ===")
-    else:
-        logger.warning("=== Failed to initialize e-paper display on startup ===")
-
-    yield
-
-    logger.info("=== Shutting down Pixi server... ===")
-    if epd:
-        logger.info("Putting EPD to sleep...")
-        epd.sleep()
-
-
-app = FastAPI(title="Pixi Image Receiver", lifespan=lifespan)
+app = FastAPI(title="Pixi Image Receiver")
 
 # Add CORS middleware to allow Vue app to connect
 app.add_middleware(
@@ -100,6 +75,33 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize e-paper display on app startup"""
+    global epd, is_initialized
+
+    # Use print for immediate visibility
+    print("=== STARTUP EVENT CALLED ===")
+
+    logger.info("=== Starting up Pixi server... ===")
+    logger.info("Startup event called")
+
+    logger.info("Calling init_epd()...")
+    if await init_epd():
+        logger.info("=== E-paper display initialized successfully on startup ===")
+    else:
+        logger.warning("=== Failed to initialize e-paper display on startup ===")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on app shutdown"""
+    logger.info("=== Shutting down Pixi server... ===")
+    if epd:
+        logger.info("Putting EPD to sleep...")
+        epd.sleep()
 
 
 async def init_epd():
