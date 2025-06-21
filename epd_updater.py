@@ -325,6 +325,8 @@ def main():
             print("Subsequent image - using partial update initialization")
             if epd.init_part() == 0:
                 print("EPD initialized successfully for partial updates")
+                epd.Clear()
+                print("Display cleared for partial updates")
             else:
                 print("Failed to initialize EPD")
                 sys.exit(1)
