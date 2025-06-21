@@ -6,7 +6,7 @@ import io
 import base64
 import logging
 import numpy as np
-import asyncio
+import subprocess
 from datetime import datetime
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -315,38 +315,19 @@ async def receive_pixi_image(request: PixiImageRequest):
         image.save(filepath)
         logger.info(f"Saved Pixi image: {filename}")
 
-        # Prepare image for e-paper display
-        epd_image = prepare_image_for_epd(image)
+        # Run EPD test with the latest image
+        logger.info("Running EPD test with latest image...")
+        success = run_epd_test_with_latest_image()
 
-        # Initialize e-paper display on first image
-        if not is_initialized:
-            if init_epd():
-                # First full display - run in thread pool
-                await asyncio.to_thread(display_first_image, epd_image)
-            else:
-                logger.error("Failed to initialize e-paper display")
+        if success:
+            logger.info("EPD test completed successfully")
         else:
-            # Detect changed regions and update partially
-            changed_regions = detect_changed_regions(epd_image, previous_image)
-
-            if changed_regions:
-                await asyncio.to_thread(update_epd_partial, epd_image, changed_regions)
-                previous_image = epd_image.copy()
-                logger.info(f"Updated {len(changed_regions)} regions on e-paper")
-            else:
-                logger.info("No changes detected, skipping e-paper update")
+            logger.error("EPD test failed")
 
         return {
             "status": "success",
             "filename": filename,
-            "epd_updated": (
-                is_initialized and len(changed_regions) > 0
-                if "changed_regions" in locals()
-                else False
-            ),
-            "regions_updated": (
-                len(changed_regions) if "changed_regions" in locals() else 0
-            ),
+            "epd_updated": success,
         }
 
     except Exception as e:
@@ -365,6 +346,43 @@ async def get_epd_status():
         "display_dimensions": f"{EPD_WIDTH}x{EPD_HEIGHT}",
         "previous_image_exists": previous_image is not None,
     }
+
+
+def run_epd_test_with_latest_image():
+    """Run the test script with the latest saved image"""
+    try:
+        # Find the latest image
+        pixi_images = [
+            f
+            for f in os.listdir(OUTPUT_DIR)
+            if f.startswith("pixi_") and f.endswith(".png")
+        ]
+        if not pixi_images:
+            logger.error("No PixiJS images found to test")
+            return False
+
+        latest_image = sorted(pixi_images)[-1]
+        logger.info(f"Running EPD test with latest image: {latest_image}")
+
+        # Run the test script
+        script_path = os.path.join(os.path.dirname(__file__), "test_existing_image.py")
+        result = subprocess.run(
+            ["python3", script_path],
+            capture_output=True,
+            text=True,
+            cwd=os.path.dirname(__file__),
+        )
+
+        logger.info(f"Test script stdout: {result.stdout}")
+        if result.stderr:
+            logger.warning(f"Test script stderr: {result.stderr}")
+
+        logger.info(f"Test script completed with return code: {result.returncode}")
+        return result.returncode == 0
+
+    except Exception as e:
+        logger.error(f"Failed to run EPD test: {e}")
+        return False
 
 
 if __name__ == "__main__":
