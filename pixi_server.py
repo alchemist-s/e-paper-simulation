@@ -15,6 +15,11 @@ import uvicorn
 
 # Waveshare EPD imports
 try:
+    import sys
+
+    # Add the lib directory to Python path
+    lib_path = os.path.join(os.path.dirname(__file__), "lib")
+    sys.path.append(lib_path)
     from waveshare_epd import epd2in13_V4
 
     EPD_AVAILABLE = True

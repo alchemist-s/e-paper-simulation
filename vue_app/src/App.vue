@@ -16,7 +16,7 @@ import { Application, Text, Container } from "pixi.js";
 import { ref, onMounted } from "vue";
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
-const serverUrl = ref<string>("http://localhost:8000");
+const serverUrl = ref<string>("http://192.168.1.111:8000");
 const pixiApp = ref<Application | null>(null);
 
 const sendToServer = async (): Promise<void> => {
