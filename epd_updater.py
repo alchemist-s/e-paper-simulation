@@ -169,11 +169,15 @@ def main():
     try:
         from waveshare_epd.epd7in5b_V2 import EPD
 
-        print("Connecting to e-paper display...")
+        print("Initializing e-paper display...")
         epd = EPD()
 
-        # Display should already be initialized from server startup
-        print("Display already initialized from server startup")
+        # Re-initialize the display for each use (SPI connection needs to be fresh)
+        if epd.init() == 0:
+            print("EPD initialized successfully")
+        else:
+            print("Failed to initialize EPD")
+            sys.exit(1)
 
         # Display images
         if previous_epd_image is None:
