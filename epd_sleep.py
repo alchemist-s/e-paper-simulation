@@ -12,13 +12,20 @@ def main():
     try:
         from waveshare_epd.epd7in5b_V2 import EPD
 
-        print("Connecting to e-paper display...")
+        print("Initializing e-paper display...")
         epd = EPD()
 
-        # Put display to sleep
-        print("Putting display to sleep...")
-        epd.sleep()
-        print("Display put to sleep successfully")
+        # Initialize the display before putting it to sleep
+        if epd.init() == 0:
+            print("EPD initialized successfully")
+
+            # Put display to sleep
+            print("Putting display to sleep...")
+            epd.sleep()
+            print("Display put to sleep successfully")
+        else:
+            print("Failed to initialize EPD")
+            sys.exit(1)
 
     except Exception as e:
         print(f"Error putting EPD to sleep: {e}")

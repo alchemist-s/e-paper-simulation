@@ -5,6 +5,7 @@
       <canvas ref="canvasRef"></canvas>
       <!-- Controls -->
       <div class="controls">
+        <button @click="changeText" class="btn">Change Text</button>
         <button @click="sendToServer" class="btn">Send to Server</button>
       </div>
     </div>
@@ -18,6 +19,8 @@ import { ref, onMounted } from "vue";
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const serverUrl = ref<string>("http://192.168.1.111:8000");
 const pixiApp = ref<Application | null>(null);
+const textToDisplay = ref<string>("Hello PixiJS!");
+let textRef: Text | null = null;
 
 const sendToServer = async (): Promise<void> => {
   try {
@@ -41,6 +44,11 @@ const sendToServer = async (): Promise<void> => {
   }
 };
 
+const changeText = (): void => {
+  textToDisplay.value = "Hello PixiJS! " + "Test";
+  textRef!.text = textToDisplay.value;
+};
+
 onMounted(async () => {
   if (!canvasRef.value) return;
 
@@ -52,8 +60,8 @@ onMounted(async () => {
 
   pixiApp.value = app;
 
-  const myText = new Text({
-    text: "Hello PixiJS!",
+  textRef = new Text({
+    text: textToDisplay.value,
     style: {
       fill: "#ffffff",
       fontSize: 36,
@@ -63,7 +71,7 @@ onMounted(async () => {
     y: 240,
   });
 
-  app.stage.addChild(myText);
+  app.stage.addChild(textRef);
 });
 </script>
 
