@@ -220,6 +220,24 @@ def update_epd_partial(epd, image, regions):
         return False
 
 
+def force_white_background(epd):
+    """Force a clean white background by displaying a white image"""
+    print("Forcing clean white background...")
+
+    # Create a completely white image
+    white_image = Image.new("1", (EPD_WIDTH, EPD_HEIGHT), 255)  # 255 = white
+
+    # Get buffer for the white image
+    buffer = epd.getbuffer(white_image)
+
+    # Create a blank red buffer (no red content)
+    red_buffer = [0x00] * (int(EPD_WIDTH / 8) * EPD_HEIGHT)
+
+    # Display the white image
+    epd.display(buffer, red_buffer)
+    print("White background forced successfully")
+
+
 def merge_regions(regions, merge_distance=32):
     """Merge regions that are close together or overlapping"""
     if not regions:
@@ -316,8 +334,8 @@ def main():
         # Initialize for partial updates (like the working counter example)
         if epd.init_part() == 0:
             print("EPD initialized successfully for partial updates")
-            epd.Clear()
-            print("Display cleared successfully")
+            force_white_background(epd)
+            print("White background established")
         else:
             print("Failed to initialize EPD")
             sys.exit(1)
