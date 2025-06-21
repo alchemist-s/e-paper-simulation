@@ -53,7 +53,7 @@ onMounted(async () => {
   pixiApp.value = app;
 
   const myText = new Text({
-    text: "Hello MAMA!",
+    text: "Hello PixiJS!",
     style: {
       fill: "#ffffff",
       fontSize: 36,

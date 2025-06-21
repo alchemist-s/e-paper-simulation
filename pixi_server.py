@@ -6,7 +6,7 @@ import io
 import base64
 import logging
 import numpy as np
-import subprocess
+import asyncio
 from datetime import datetime
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -98,13 +98,9 @@ class PixiImageRequest(BaseModel):
     image: str  # Base64 encoded PNG image
 
 
-def init_epd():
+async def init_epd():
     """Initialize the e-paper display"""
     global epd, is_initialized
-
-    logger.info(f"=== INITIALIZING EPD ===")
-    logger.info(f"MOCK_MODE: {MOCK_MODE}")
-    logger.info(f"EPD_AVAILABLE: {EPD_AVAILABLE}")
 
     if MOCK_MODE:
         logger.info("Running in mock mode - no actual hardware")
@@ -119,30 +115,16 @@ def init_epd():
     try:
         logger.info("Attempting to initialize real e-paper hardware...")
         epd = EPD()
-        logger.info(f"EPD object created: {epd}")
-
         # Initialize for partial updates
-        logger.info("Calling epd.init_part()...")
-        result = epd.init_part()
-        logger.info(f"init_part() returned: {result}")
-
-        if result != 0:
+        if epd.init_part() != 0:
             logger.error("Failed to initialize e-paper display")
             return False
-
-        logger.info("Calling epd.Clear()...")
         epd.Clear()
-        logger.info("Clear() completed")
-
         is_initialized = True
         logger.info("Real e-paper display initialized successfully")
-        logger.info("=== EPD INITIALIZATION COMPLETED ===")
         return True
     except Exception as e:
         logger.error(f"Failed to initialize e-paper display: {e}")
-        import traceback
-
-        traceback.print_exc()
         return False
 
 
@@ -224,7 +206,7 @@ def find_connected_regions(diff_array):
     return regions
 
 
-def update_epd_partial(image, regions):
+async def update_epd_partial(image, regions):
     """Update specific regions of the e-paper display"""
     global epd
 
@@ -271,29 +253,30 @@ def update_epd_partial(image, regions):
         return False
 
 
-def display_first_image(epd_image):
+async def display_first_image(epd_image):
     """Display the first image on e-paper"""
     global epd, previous_image
-
-    logger.info("=== STARTING FIRST DISPLAY ===")
-    logger.info(f"EPD object: {epd}")
-    logger.info(f"EPD type: {type(epd)}")
 
     logger.info("Creating buffer for first display...")
     buffer = epd.getbuffer(epd_image)
     red_buffer = [0x00] * (int(EPD_WIDTH / 8) * EPD_HEIGHT)
     logger.info(f"Buffer size: {len(buffer)}, Red buffer size: {len(red_buffer)}")
-
     logger.info("Sending to e-paper display...")
-    try:
-        epd.display(buffer, red_buffer)
-        logger.info("Display command completed successfully")
-    except Exception as e:
-        logger.error(f"Display command failed: {e}")
-        raise
-
+    epd.display(buffer, red_buffer)
     previous_image = epd_image.copy()
-    logger.info("=== FIRST DISPLAY COMPLETED ===")
+    logger.info("First image displayed on e-paper")
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize e-paper display on app startup"""
+    global epd, is_initialized
+    logger.info("Starting up Pixi server...")
+
+    if await init_epd():
+        logger.info("E-paper display initialized successfully on startup")
+    else:
+        logger.warning("Failed to initialize e-paper display on startup")
 
 
 @app.post("/")
@@ -315,19 +298,42 @@ async def receive_pixi_image(request: PixiImageRequest):
         image.save(filepath)
         logger.info(f"Saved Pixi image: {filename}")
 
-        # Run EPD test with the latest image
-        logger.info("Running EPD test with latest image...")
-        success = run_epd_test_with_latest_image()
+        # Prepare image for e-paper display
+        epd_image = prepare_image_for_epd(image)
 
-        if success:
-            logger.info("EPD test completed successfully")
+        # Display on e-paper (first image or updates)
+        if not is_initialized:
+            logger.error("E-paper display not initialized")
+            return {
+                "status": "error",
+                "message": "E-paper display not initialized",
+                "filename": filename,
+            }
+        elif previous_image is None:
+            # First image display
+            await display_first_image(epd_image)
         else:
-            logger.error("EPD test failed")
+            # Detect changed regions and update partially
+            changed_regions = detect_changed_regions(epd_image, previous_image)
+
+            if changed_regions:
+                await update_epd_partial(epd_image, changed_regions)
+                previous_image = epd_image.copy()
+                logger.info(f"Updated {len(changed_regions)} regions on e-paper")
+            else:
+                logger.info("No changes detected, skipping e-paper update")
 
         return {
             "status": "success",
             "filename": filename,
-            "epd_updated": success,
+            "epd_updated": (
+                is_initialized and len(changed_regions) > 0
+                if "changed_regions" in locals()
+                else False
+            ),
+            "regions_updated": (
+                len(changed_regions) if "changed_regions" in locals() else 0
+            ),
         }
 
     except Exception as e:
@@ -346,43 +352,6 @@ async def get_epd_status():
         "display_dimensions": f"{EPD_WIDTH}x{EPD_HEIGHT}",
         "previous_image_exists": previous_image is not None,
     }
-
-
-def run_epd_test_with_latest_image():
-    """Run the test script with the latest saved image"""
-    try:
-        # Find the latest image
-        pixi_images = [
-            f
-            for f in os.listdir(OUTPUT_DIR)
-            if f.startswith("pixi_") and f.endswith(".png")
-        ]
-        if not pixi_images:
-            logger.error("No PixiJS images found to test")
-            return False
-
-        latest_image = sorted(pixi_images)[-1]
-        logger.info(f"Running EPD test with latest image: {latest_image}")
-
-        # Run the test script
-        script_path = os.path.join(os.path.dirname(__file__), "test_existing_image.py")
-        result = subprocess.run(
-            ["python3", script_path],
-            capture_output=True,
-            text=True,
-            cwd=os.path.dirname(__file__),
-        )
-
-        logger.info(f"Test script stdout: {result.stdout}")
-        if result.stderr:
-            logger.warning(f"Test script stderr: {result.stderr}")
-
-        logger.info(f"Test script completed with return code: {result.returncode}")
-        return result.returncode == 0
-
-    except Exception as e:
-        logger.error(f"Failed to run EPD test: {e}")
-        return False
 
 
 if __name__ == "__main__":
