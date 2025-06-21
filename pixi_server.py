@@ -24,9 +24,16 @@ try:
     from waveshare_epd.epd7in5b_V2 import EPD
 
     EPD_AVAILABLE = True
+    MOCK_MODE = False
 except ImportError as e:
     EPD_AVAILABLE = False
+    MOCK_MODE = True
     logging.warning(f"Waveshare EPD library not available: {e}")
+except RuntimeError as e:
+    # GPIO error - run in mock mode
+    EPD_AVAILABLE = False
+    MOCK_MODE = True
+    logging.warning(f"GPIO error, running in mock mode: {e}")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -54,6 +61,36 @@ is_initialized = False
 # E-Paper display dimensions (for epd7in5b_V2)
 EPD_WIDTH = 800
 EPD_HEIGHT = 480
+
+
+# Mock EPD class for testing without hardware
+class MockEPD:
+    def __init__(self):
+        self.width = 800
+        self.height = 480
+        self.partFlag = 1
+
+    def init_part(self):
+        logging.info("Mock EPD: Initialized for partial updates")
+        return 0
+
+    def Clear(self):
+        logging.info("Mock EPD: Display cleared")
+
+    def getbuffer(self, image):
+        logging.info("Mock EPD: Got buffer for image")
+        return [0x00] * (int(self.width / 8) * self.height)
+
+    def display(self, buffer, red_buffer):
+        logging.info("Mock EPD: Full display updated")
+
+    def display_Partial(self, buffer, x_min, y_min, x_max, y_max):
+        logging.info(
+            f"Mock EPD: Partial update at ({x_min},{y_min}) to ({x_max},{y_max})"
+        )
+
+    def sleep(self):
+        logging.info("Mock EPD: Display sleeping")
 
 
 class PixiImageRequest(BaseModel):
