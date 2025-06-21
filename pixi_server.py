@@ -102,6 +102,10 @@ def init_epd():
     """Initialize the e-paper display"""
     global epd, is_initialized
 
+    logger.info(f"=== INITIALIZING EPD ===")
+    logger.info(f"MOCK_MODE: {MOCK_MODE}")
+    logger.info(f"EPD_AVAILABLE: {EPD_AVAILABLE}")
+
     if MOCK_MODE:
         logger.info("Running in mock mode - no actual hardware")
         epd = MockEPD()
@@ -115,16 +119,30 @@ def init_epd():
     try:
         logger.info("Attempting to initialize real e-paper hardware...")
         epd = EPD()
+        logger.info(f"EPD object created: {epd}")
+
         # Initialize for partial updates
-        if epd.init_part() != 0:
+        logger.info("Calling epd.init_part()...")
+        result = epd.init_part()
+        logger.info(f"init_part() returned: {result}")
+
+        if result != 0:
             logger.error("Failed to initialize e-paper display")
             return False
+
+        logger.info("Calling epd.Clear()...")
         epd.Clear()
+        logger.info("Clear() completed")
+
         is_initialized = True
         logger.info("Real e-paper display initialized successfully")
+        logger.info("=== EPD INITIALIZATION COMPLETED ===")
         return True
     except Exception as e:
         logger.error(f"Failed to initialize e-paper display: {e}")
+        import traceback
+
+        traceback.print_exc()
         return False
 
 
@@ -257,14 +275,25 @@ def display_first_image(epd_image):
     """Display the first image on e-paper"""
     global epd, previous_image
 
+    logger.info("=== STARTING FIRST DISPLAY ===")
+    logger.info(f"EPD object: {epd}")
+    logger.info(f"EPD type: {type(epd)}")
+
     logger.info("Creating buffer for first display...")
     buffer = epd.getbuffer(epd_image)
     red_buffer = [0x00] * (int(EPD_WIDTH / 8) * EPD_HEIGHT)
     logger.info(f"Buffer size: {len(buffer)}, Red buffer size: {len(red_buffer)}")
+
     logger.info("Sending to e-paper display...")
-    epd.display(buffer, red_buffer)
+    try:
+        epd.display(buffer, red_buffer)
+        logger.info("Display command completed successfully")
+    except Exception as e:
+        logger.error(f"Display command failed: {e}")
+        raise
+
     previous_image = epd_image.copy()
-    logger.info("First image displayed on e-paper")
+    logger.info("=== FIRST DISPLAY COMPLETED ===")
 
 
 @app.post("/")
