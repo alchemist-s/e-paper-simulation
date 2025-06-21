@@ -19,35 +19,35 @@ import subprocess
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Waveshare EPD imports
-try:
-    import sys
+# # Waveshare EPD imports
+# try:
+#     import sys
 
-    # Add the lib directory to Python path
-    lib_path = os.path.join(os.path.dirname(__file__), "lib")
-    sys.path.append(lib_path)
-    logger.info(f"Added lib path: {lib_path}")
+#     # Add the lib directory to Python path
+#     lib_path = os.path.join(os.path.dirname(__file__), "lib")
+#     sys.path.append(lib_path)
+#     logger.info(f"Added lib path: {lib_path}")
 
-    # Import directly from the file since __init__.py is empty
-    logger.info("Attempting to import EPD...")
-    from waveshare_epd.epd7in5b_V2 import EPD
+#     # Import directly from the file since __init__.py is empty
+#     logger.info("Attempting to import EPD...")
+#     from waveshare_epd.epd7in5b_V2 import EPD
 
-    logger.info("EPD imported successfully")
+#     logger.info("EPD imported successfully")
 
-    EPD_AVAILABLE = True
-except ImportError as e:
-    EPD_AVAILABLE = False
-    logger.error(f"Waveshare EPD library not available: {e}")
-except RuntimeError as e:
-    # GPIO error
-    EPD_AVAILABLE = False
-    logger.error(f"GPIO error: {e}")
-except Exception as e:
-    EPD_AVAILABLE = False
-    logger.error(f"Unexpected error importing EPD: {e}")
-    import traceback
+#     EPD_AVAILABLE = True
+# except ImportError as e:
+#     EPD_AVAILABLE = False
+#     logger.error(f"Waveshare EPD library not available: {e}")
+# except RuntimeError as e:
+#     # GPIO error
+#     EPD_AVAILABLE = False
+#     logger.error(f"GPIO error: {e}")
+# except Exception as e:
+#     EPD_AVAILABLE = False
+#     logger.error(f"Unexpected error importing EPD: {e}")
+#     import traceback
 
-    logger.error(f"Traceback: {traceback.format_exc()}")
+#     logger.error(f"Traceback: {traceback.format_exc()}")
 
 OUTPUT_DIR = "pixi_images"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -85,18 +85,12 @@ async def startup_event():
 
     # Use print for immediate visibility
     print("=== STARTUP EVENT CALLED ===")
+    subprocess.run(["python3", "test_existing_image.py"])
+    # if await init_epd():
+    #     logger.info("=== E-paper display initialized successfully on startup ===")
 
-    logger.info("=== Starting up Pixi server... ===")
-    logger.info("Startup event called")
-
-    logger.info("Calling init_epd()...")
-    if await init_epd():
-        logger.info("=== E-paper display initialized successfully on startup ===")
-
-        # lets call test_existing_image.py
-        subprocess.run(["python3", "test_existing_image.py"])
-    else:
-        logger.warning("=== Failed to initialize e-paper display on startup ===")
+    # else:
+    #     logger.warning("=== Failed to initialize e-paper display on startup ===")
 
 
 @app.on_event("shutdown")
