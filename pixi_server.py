@@ -15,6 +15,7 @@ import uvicorn
 import subprocess
 
 # Configure logging first
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 OUTPUT_DIR = "pixi_images"
