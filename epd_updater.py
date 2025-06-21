@@ -69,38 +69,52 @@ def detect_changes(new_image, old_image):
 
 
 def fast_cluster_regions(coords, max_distance=50):
-    """Fast clustering of coordinates into regions"""
+    """Fast clustering of coordinates into regions using grid-based approach"""
     if not coords:
         return []
 
-    regions = []
-    used = set()
+    # Convert to grid-based clustering for speed
+    grid_size = max_distance
+    grid = {}
 
-    for i, (y, x) in enumerate(coords):
-        if i in used:
+    # Group pixels by grid cells
+    for y, x in coords:
+        grid_y = y // grid_size
+        grid_x = x // grid_size
+        grid_key = (grid_y, grid_x)
+
+        if grid_key not in grid:
+            grid[grid_key] = []
+        grid[grid_key].append((y, x))
+
+    # Merge adjacent grid cells
+    regions = []
+    processed = set()
+
+    for grid_key, pixels in grid.items():
+        if grid_key in processed:
             continue
 
         # Start a new region
-        region_coords = [(y, x)]
-        used.add(i)
+        region_pixels = pixels.copy()
+        processed.add(grid_key)
 
-        # Find nearby pixels
-        for j, (y2, x2) in enumerate(coords):
-            if j in used:
-                continue
+        # Find adjacent grid cells
+        grid_y, grid_x = grid_key
+        for dy in [-1, 0, 1]:
+            for dx in [-1, 0, 1]:
+                if dy == 0 and dx == 0:
+                    continue
 
-            # Check if this pixel is close to any pixel in current region
-            for ry, rx in region_coords:
-                distance = ((y2 - ry) ** 2 + (x2 - rx) ** 2) ** 0.5
-                if distance <= max_distance:
-                    region_coords.append((y2, x2))
-                    used.add(j)
-                    break
+                neighbor_key = (grid_y + dy, grid_x + dx)
+                if neighbor_key in grid and neighbor_key not in processed:
+                    region_pixels.extend(grid[neighbor_key])
+                    processed.add(neighbor_key)
 
         # Calculate bounding box for this region
-        if region_coords:
-            ys = [c[0] for c in region_coords]
-            xs = [c[1] for c in region_coords]
+        if region_pixels:
+            ys = [p[0] for p in region_pixels]
+            xs = [p[1] for p in region_pixels]
             y_min, y_max = min(ys), max(ys)
             x_min, x_max = min(xs), max(xs)
 

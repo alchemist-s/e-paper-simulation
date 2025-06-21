@@ -45,7 +45,9 @@ const sendToServer = async (): Promise<void> => {
 };
 
 const changeText = (): void => {
-  textToDisplay.value = "Hello PixiJS! " + "Four";
+  // add random 4 letter word to the text
+  const randomWord = Math.random().toString(36).substring(2, 6);
+  textToDisplay.value = "Hello PixiJS! " + randomWord;
   textRef!.text = textToDisplay.value;
 };
 
