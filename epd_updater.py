@@ -278,7 +278,7 @@ def display_first_image(epd, epd_image):
     print("Creating buffer for first display...")
     buffer = epd.getbuffer(epd_image)
     red_buffer = [0x00] * (int(EPD_WIDTH / 8) * EPD_HEIGHT)
-    print(f"Buffer size: {len(buffer)}, Red buffer size: {len(red_buffer)}")
+    print(f"Buffer size: {len(buffer)}")
     print("Sending to e-paper display...")
     epd.display(buffer, red_buffer)
     print("First image displayed on e-paper")
@@ -396,17 +396,24 @@ def main():
 
             if changed_regions:
                 print(f"Found {len(changed_regions)} changed regions, updating display")
+
+                # Merge overlapping or nearby regions
+                merged_regions = merge_regions(changed_regions)
+                print(
+                    f"Merged {len(changed_regions)} regions into {len(merged_regions)} regions"
+                )
+
                 # Try alternative method first
                 try:
-                    update_epd_partial_alternative(epd, new_epd_image, changed_regions)
+                    update_epd_partial_alternative(epd, new_epd_image, merged_regions)
                     print(
-                        f"Updated {len(changed_regions)} regions on e-paper (alternative method)"
+                        f"Updated {len(merged_regions)} regions on e-paper (alternative method)"
                     )
                 except Exception as e:
                     print(f"Alternative method failed: {e}, trying original method")
-                    update_epd_partial(epd, new_epd_image, changed_regions)
+                    update_epd_partial(epd, new_epd_image, merged_regions)
                     print(
-                        f"Updated {len(changed_regions)} regions on e-paper (original method)"
+                        f"Updated {len(merged_regions)} regions on e-paper (original method)"
                     )
             else:
                 print("No changes detected, skipping e-paper update")
