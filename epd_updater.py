@@ -158,6 +158,9 @@ def filter_regions(regions):
 def update_epd_partial(epd, image, regions):
     """Update specific regions of the e-paper display"""
     try:
+        # Get buffer for the full image
+        buffer = epd.getbuffer(image)
+
         # Update each changed region
         for i, (x_min, y_min, x_max, y_max) in enumerate(regions):
             print(
@@ -185,13 +188,7 @@ def update_epd_partial(epd, image, regions):
                 else:
                     x_max = x_max // 8 * 8 + 1
 
-            # Crop the region from the full image
-            region_image = image.crop((x_min, y_min, x_max, y_max))
-
-            # Use the EPD's getbuffer method
-            buffer = epd.getbuffer(region_image)
-
-            # Update the region
+            # Update the region using the full image buffer
             epd.display_Partial(buffer, x_min, y_min, x_max, y_max)
             print(f"Updated region: ({x_min},{y_min}) to ({x_max},{y_max})")
 
