@@ -15,7 +15,6 @@ import uvicorn
 import subprocess
 
 # Configure logging first
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 OUTPUT_DIR = "pixi_images"
@@ -53,7 +52,10 @@ async def startup_event():
     try:
         logger.info("Initializing EPD display...")
         result = subprocess.run(
-            ["python3", "epd_init.py"], capture_output=True, text=True, cwd=os.getcwd()
+            ["sudo", "python3", "epd_init.py"],
+            capture_output=True,
+            text=True,
+            cwd=os.getcwd(),
         )
 
         if result.returncode == 0:
