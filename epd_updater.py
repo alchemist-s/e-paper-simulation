@@ -216,9 +216,13 @@ def update_epd_partial(epd, image, regions):
 
 
 def update_epd_partial_alternative(epd, image, regions):
-    """Alternative partial update method using individual region buffers"""
+    """Alternative partial update method using full image buffer"""
     try:
-        # Update each changed region with its own buffer
+        # Get buffer for the full image (EPD requires 800x480)
+        buffer = epd.getbuffer(image)
+        print(f"Full buffer size: {len(buffer)} bytes")
+
+        # Update each changed region using the full buffer
         for i, (x_min, y_min, x_max, y_max) in enumerate(regions):
             print(
                 f"Alternative update region {i+1}/{len(regions)}: ({x_min},{y_min}) to ({x_max},{y_max})"
@@ -247,14 +251,8 @@ def update_epd_partial_alternative(epd, image, regions):
 
             print(f"Aligned region: ({x_min},{y_min}) to ({x_max},{y_max})")
 
-            # Crop the region and create its own buffer
-            region_image = image.crop((x_min, y_min, x_max, y_max))
-            region_buffer = epd.getbuffer(region_image)
-
-            print(f"Region buffer size: {len(region_buffer)} bytes")
-
-            # Update the region using the region buffer
-            epd.display_Partial(region_buffer, x_min, y_min, x_max, y_max)
+            # Update the region using the full image buffer
+            epd.display_Partial(buffer, x_min, y_min, x_max, y_max)
             print(f"Updated region: ({x_min},{y_min}) to ({x_max},{y_max})")
 
         return True
@@ -352,6 +350,16 @@ def main():
     previous_epd_image = (
         prepare_image_for_epd(previous_image) if previous_image else None
     )
+
+    # Save current and previous images for debugging
+    if previous_epd_image:
+        previous_epd_image.save(
+            f"debug_previous_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.png"
+        )
+    new_epd_image.save(
+        f"debug_current_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.png"
+    )
+    print("Saved debug images for comparison")
 
     # Initialize e-paper display
     try:
