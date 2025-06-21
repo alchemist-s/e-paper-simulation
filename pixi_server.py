@@ -64,11 +64,18 @@ def init_epd():
     """Initialize the e-paper display"""
     global epd, is_initialized
 
+    if MOCK_MODE:
+        logger.info("Running in mock mode - no actual hardware")
+        epd = MockEPD()
+        is_initialized = True
+        return True
+
     if not EPD_AVAILABLE:
         logger.error("EPD library not available")
         return False
 
     try:
+        logger.info("Attempting to initialize real e-paper hardware...")
         epd = EPD()
         # Initialize for partial updates
         if epd.init_part() != 0:
@@ -76,7 +83,7 @@ def init_epd():
             return False
         epd.Clear()
         is_initialized = True
-        logger.info("E-paper display initialized successfully")
+        logger.info("Real e-paper display initialized successfully")
         return True
     except Exception as e:
         logger.error(f"Failed to initialize e-paper display: {e}")
