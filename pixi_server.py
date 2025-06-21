@@ -20,7 +20,7 @@ try:
     # Add the lib directory to Python path
     lib_path = os.path.join(os.path.dirname(__file__), "lib")
     sys.path.append(lib_path)
-    from waveshare_epd import epd2in13_V4
+    from waveshare_epd import epd7in5b_V2
 
     EPD_AVAILABLE = True
 except ImportError:
@@ -52,9 +52,9 @@ epd = None
 previous_image = None
 is_initialized = False
 
-# E-Paper display dimensions (for epd2in13_V4)
-EPD_WIDTH = 212
-EPD_HEIGHT = 104
+# E-Paper display dimensions (for epd7in5b_V2)
+EPD_WIDTH = 800
+EPD_HEIGHT = 480
 
 
 class PixiImageRequest(BaseModel):
@@ -70,8 +70,11 @@ def init_epd():
         return False
 
     try:
-        epd = epd2in13_V4.EPD()
-        epd.init()
+        epd = epd7in5b_V2.EPD()
+        # Initialize for partial updates
+        if epd.init_part() != 0:
+            logger.error("Failed to initialize e-paper display")
+            return False
         epd.Clear()
         is_initialized = True
         logger.info("E-paper display initialized successfully")
@@ -86,13 +89,9 @@ def prepare_image_for_epd(image):
     # Resize to e-paper dimensions
     image = image.resize((EPD_WIDTH, EPD_HEIGHT), Image.Resampling.LANCZOS)
 
-    # Convert to grayscale
-    if image.mode != "L":
-        image = image.convert("L")
-
-    # Convert to black and white (threshold)
-    threshold = 128
-    image = image.point(lambda x: 0 if x < threshold else 255, "1")
+    # Convert to 1-bit (black and white)
+    if image.mode != "1":
+        image = image.convert("1")
 
     return image
 
@@ -159,23 +158,36 @@ def update_epd_partial(image, regions):
         return False
 
     try:
-        # Convert image to bytes for e-paper
-        image_bytes = image.tobytes()
-
         # Update each changed region
         for x_min, y_min, x_max, y_max in regions:
-            width = x_max - x_min + 1
-            height = y_max - y_min + 1
+            # Align region boundaries to 8-byte boundaries for e-paper
+            if (
+                (x_min % 8 + x_max % 8 == 8 and x_min % 8 > x_max % 8)
+                or x_min % 8 + x_max % 8 == 0
+                or (x_max - x_min) % 8 == 0
+            ):
+                x_min = x_min // 8 * 8
+                x_max = x_max // 8 * 8
+            else:
+                x_min = x_min // 8 * 8
+                if x_max % 8 == 0:
+                    x_max = x_max // 8 * 8
+                else:
+                    x_max = x_max // 8 * 8 + 1
 
-            # Extract region data
-            region_data = []
-            for y in range(y_min, y_max + 1):
-                row_start = y * EPD_WIDTH + x_min
-                row_end = row_start + width
-                region_data.extend(image_bytes[row_start:row_end])
+            # Crop the region from the full image
+            region_image = image.crop((x_min, y_min, x_max, y_max))
+
+            # Convert to buffer
+            img = region_image.convert("1")
+            buf = bytearray(img.tobytes("raw"))
+
+            # Invert the bytes (same as getbuffer does)
+            for i in range(len(buf)):
+                buf[i] ^= 0xFF
 
             # Update the region
-            epd.display_Partial(region_data, x_min, y_min, width, height)
+            epd.display_Partial(buf, x_min, y_min, x_max, y_max)
             logger.info(f"Updated region: ({x_min},{y_min}) to ({x_max},{y_max})")
 
         return True
@@ -210,8 +222,9 @@ async def receive_pixi_image(request: PixiImageRequest):
         if not is_initialized:
             if init_epd():
                 # First full display
-                epd_image_bytes = epd_image.tobytes()
-                epd.display(epd_image_bytes)
+                buffer = epd.getbuffer(epd_image)
+                red_buffer = [0x00] * (int(EPD_WIDTH / 8) * EPD_HEIGHT)
+                epd.display(buffer, red_buffer)
                 previous_image = epd_image.copy()
                 logger.info("First image displayed on e-paper")
             else:
