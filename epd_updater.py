@@ -50,7 +50,7 @@ def detect_changed_regions(new_image, old_image):
         # No changes detected
         return []
 
-    # Find connected regions of changes
+    # Find connected regions
     regions = find_connected_regions(diff_array)
     return regions
 
@@ -64,29 +64,70 @@ def find_connected_regions(diff_array):
 
     regions = []
     for i in range(1, num_features + 1):
-        # Get coordinates of this region
+        # Find bounding box of this region
         coords = np.where(labeled_array == i)
         if len(coords[0]) > 0:
             y_min, y_max = coords[0].min(), coords[0].max()
             x_min, x_max = coords[1].min(), coords[1].max()
 
-            # Add some padding to ensure complete updates
+            # Add some padding around the region
             padding = 8
             x_min = max(0, x_min - padding)
-            y_min = max(0, y_min - padding)
             x_max = min(EPD_WIDTH - 1, x_max + padding)
+            y_min = max(0, y_min - padding)
             y_max = min(EPD_HEIGHT - 1, y_max + padding)
 
             regions.append((x_min, y_min, x_max, y_max))
 
-    return regions
+    # Filter and merge regions
+    return filter_and_merge_regions(regions)
+
+
+def filter_and_merge_regions(regions):
+    """Filter out small regions and merge nearby ones"""
+    if not regions:
+        return []
+
+    # Filter out regions that are too small
+    min_size = 32  # Minimum region size
+    filtered = []
+    for x_min, y_min, x_max, y_max in regions:
+        width = x_max - x_min
+        height = y_max - y_min
+        if width >= min_size and height >= min_size:
+            filtered.append((x_min, y_min, x_max, y_max))
+
+    # Sort by area (largest first)
+    filtered.sort(key=lambda r: (r[2] - r[0]) * (r[3] - r[1]), reverse=True)
+
+    # Limit number of regions to prevent excessive updates
+    max_regions = 10
+    if len(filtered) > max_regions:
+        filtered = filtered[:max_regions]
+
+    # If we still have too many small regions, just return the full area
+    if len(filtered) > 5:
+        print(f"Too many regions ({len(filtered)}), using full display update")
+        return [(0, 0, EPD_WIDTH, EPD_HEIGHT)]
+
+    return filtered
 
 
 def update_epd_partial(epd, image, regions):
     """Update specific regions of the e-paper display"""
     try:
         # Update each changed region
-        for x_min, y_min, x_max, y_max in regions:
+        for i, (x_min, y_min, x_max, y_max) in enumerate(regions):
+            print(
+                f"Updating region {i+1}/{len(regions)}: ({x_min},{y_min}) to ({x_max},{y_max})"
+            )
+
+            # Ensure all values are integers
+            x_min = int(x_min)
+            y_min = int(y_min)
+            x_max = int(x_max)
+            y_max = int(y_max)
+
             # Align region boundaries to 8-byte boundaries for e-paper
             if (
                 (x_min % 8 + x_max % 8 == 8 and x_min % 8 > x_max % 8)
@@ -115,6 +156,9 @@ def update_epd_partial(epd, image, regions):
         return True
     except Exception as e:
         print(f"Failed to update e-paper display: {e}")
+        import traceback
+
+        traceback.print_exc()
         return False
 
 
