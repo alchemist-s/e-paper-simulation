@@ -4,6 +4,7 @@ import sys
 import os
 import numpy as np
 from PIL import Image
+from datetime import datetime
 
 # Add the lib directory to Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), "lib"))
@@ -26,6 +27,14 @@ def prepare_image_for_epd(image):
         image = image.convert("1")
 
     print(f"Final image size: {image.size}, mode: {image.mode}")
+
+    # Save debug image
+    debug_filename = (
+        f"debug_epd_processed_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.png"
+    )
+    image.save(debug_filename)
+    print(f"Saved processed image: {debug_filename}")
+
     return image
 
 
@@ -160,6 +169,9 @@ def update_epd_partial(epd, image, regions):
     try:
         # Get buffer for the full image
         buffer = epd.getbuffer(image)
+        print(f"Buffer size: {len(buffer)} bytes")
+        print(f"Buffer first 10 bytes: {buffer[:10]}")
+        print(f"Buffer last 10 bytes: {buffer[-10:]}")
 
         # Update each changed region
         for i, (x_min, y_min, x_max, y_max) in enumerate(regions):
@@ -188,6 +200,8 @@ def update_epd_partial(epd, image, regions):
                 else:
                     x_max = x_max // 8 * 8 + 1
 
+            print(f"Aligned region: ({x_min},{y_min}) to ({x_max},{y_max})")
+
             # Update the region using the full image buffer
             epd.display_Partial(buffer, x_min, y_min, x_max, y_max)
             print(f"Updated region: ({x_min},{y_min}) to ({x_max},{y_max})")
@@ -195,6 +209,57 @@ def update_epd_partial(epd, image, regions):
         return True
     except Exception as e:
         print(f"Failed to update e-paper display: {e}")
+        import traceback
+
+        traceback.print_exc()
+        return False
+
+
+def update_epd_partial_alternative(epd, image, regions):
+    """Alternative partial update method using individual region buffers"""
+    try:
+        # Update each changed region with its own buffer
+        for i, (x_min, y_min, x_max, y_max) in enumerate(regions):
+            print(
+                f"Alternative update region {i+1}/{len(regions)}: ({x_min},{y_min}) to ({x_max},{y_max})"
+            )
+
+            # Ensure all values are integers
+            x_min = int(x_min)
+            y_min = int(y_min)
+            x_max = int(x_max)
+            y_max = int(y_max)
+
+            # Align region boundaries to 8-byte boundaries for e-paper
+            if (
+                (x_min % 8 + x_max % 8 == 8 and x_min % 8 > x_max % 8)
+                or x_min % 8 + x_max % 8 == 0
+                or (x_max - x_min) % 8 == 0
+            ):
+                x_min = x_min // 8 * 8
+                x_max = x_max // 8 * 8
+            else:
+                x_min = x_min // 8 * 8
+                if x_max % 8 == 0:
+                    x_max = x_max // 8 * 8
+                else:
+                    x_max = x_max // 8 * 8 + 1
+
+            print(f"Aligned region: ({x_min},{y_min}) to ({x_max},{y_max})")
+
+            # Crop the region and create its own buffer
+            region_image = image.crop((x_min, y_min, x_max, y_max))
+            region_buffer = epd.getbuffer(region_image)
+
+            print(f"Region buffer size: {len(region_buffer)} bytes")
+
+            # Update the region using the region buffer
+            epd.display_Partial(region_buffer, x_min, y_min, x_max, y_max)
+            print(f"Updated region: ({x_min},{y_min}) to ({x_max},{y_max})")
+
+        return True
+    except Exception as e:
+        print(f"Failed to update e-paper display (alternative): {e}")
         import traceback
 
         traceback.print_exc()
@@ -314,8 +379,18 @@ def main():
 
             if changed_regions:
                 print(f"Found {len(changed_regions)} changed regions, updating display")
-                update_epd_partial(epd, new_epd_image, changed_regions)
-                print(f"Updated {len(changed_regions)} regions on e-paper")
+                # Try alternative method first
+                try:
+                    update_epd_partial_alternative(epd, new_epd_image, changed_regions)
+                    print(
+                        f"Updated {len(changed_regions)} regions on e-paper (alternative method)"
+                    )
+                except Exception as e:
+                    print(f"Alternative method failed: {e}, trying original method")
+                    update_epd_partial(epd, new_epd_image, changed_regions)
+                    print(
+                        f"Updated {len(changed_regions)} regions on e-paper (original method)"
+                    )
             else:
                 print("No changes detected, skipping e-paper update")
 
