@@ -14,6 +14,10 @@ from pydantic import BaseModel
 from PIL import Image
 import uvicorn
 
+# Configure logging first
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Waveshare EPD imports
 try:
     import sys
@@ -21,22 +25,28 @@ try:
     # Add the lib directory to Python path
     lib_path = os.path.join(os.path.dirname(__file__), "lib")
     sys.path.append(lib_path)
+    logger.info(f"Added lib path: {lib_path}")
+
     # Import directly from the file since __init__.py is empty
+    logger.info("Attempting to import EPD...")
     from waveshare_epd.epd7in5b_V2 import EPD
+
+    logger.info("EPD imported successfully")
 
     EPD_AVAILABLE = True
 except ImportError as e:
     EPD_AVAILABLE = False
-    logging.error(f"Waveshare EPD library not available: {e}")
+    logger.error(f"Waveshare EPD library not available: {e}")
 except RuntimeError as e:
     # GPIO error
     EPD_AVAILABLE = False
-    logging.error(f"GPIO error: {e}")
+    logger.error(f"GPIO error: {e}")
+except Exception as e:
+    EPD_AVAILABLE = False
+    logger.error(f"Unexpected error importing EPD: {e}")
+    import traceback
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
+    logger.error(f"Traceback: {traceback.format_exc()}")
 
 OUTPUT_DIR = "pixi_images"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -59,17 +69,20 @@ class PixiImageRequest(BaseModel):
 async def lifespan(_: FastAPI):
     """Initialize e-paper display on app startup"""
     global epd, is_initialized
-    logger.info("Starting up Pixi server...")
+    logger.info("=== Starting up Pixi server... ===")
+    logger.info("Lifespan function called")
 
+    logger.info("Calling init_epd()...")
     if await init_epd():
-        logger.info("E-paper display initialized successfully on startup")
+        logger.info("=== E-paper display initialized successfully on startup ===")
     else:
-        logger.warning("Failed to initialize e-paper display on startup")
+        logger.warning("=== Failed to initialize e-paper display on startup ===")
 
     yield
 
-    logger.info("Shutting down Pixi server...")
+    logger.info("=== Shutting down Pixi server... ===")
     if epd:
+        logger.info("Putting EPD to sleep...")
         epd.sleep()
 
 
@@ -89,23 +102,39 @@ async def init_epd():
     """Initialize the e-paper display"""
     global epd, is_initialized
 
+    logger.info(f"EPD_AVAILABLE: {EPD_AVAILABLE}")
+
     if not EPD_AVAILABLE:
         logger.error("EPD library not available")
         return False
 
     try:
         logger.info("Attempting to initialize real e-paper hardware...")
+        logger.info("Creating EPD instance...")
         epd = EPD()
+        logger.info("EPD instance created successfully")
+
         # Initialize for partial updates
-        if epd.init_part() != 0:
-            logger.error("Failed to initialize e-paper display")
+        logger.info("Initializing for partial updates...")
+        result = epd.init_part()
+        logger.info(f"init_part() returned: {result}")
+
+        if result != 0:
+            logger.error(
+                f"Failed to initialize e-paper display, init_part() returned {result}"
+            )
             return False
+
+        logger.info("Clearing display...")
         epd.Clear()
         is_initialized = True
         logger.info("Real e-paper display initialized successfully")
         return True
     except Exception as e:
         logger.error(f"Failed to initialize e-paper display: {e}")
+        import traceback
+
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return False
 
 
