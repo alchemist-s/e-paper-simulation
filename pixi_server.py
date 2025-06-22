@@ -13,6 +13,10 @@ from pydantic import BaseModel
 from PIL import Image
 import uvicorn
 import subprocess
+import asyncio
+
+# Import the EPD queue processor
+from epd_queue_processor import get_epd_processor
 
 # Configure logging first
 logging.basicConfig(level=logging.INFO)
@@ -29,7 +33,7 @@ class PixiImageRequest(BaseModel):
     image: str  # Base64 encoded PNG image
 
 
-app = FastAPI(title="Pixi Image Receiver")
+app = FastAPI(title="Pixi E-Paper Server", version="1.0.0")
 
 # Add CORS middleware to allow Vue app to connect
 app.add_middleware(
@@ -66,6 +70,14 @@ async def startup_event():
     # Clear the pixi_images directory
     clear_pixi_images_directory()
 
+    # Start the EPD queue processor
+    try:
+        epd_processor = await get_epd_processor()
+        await epd_processor.start()
+        logger.info("EPD queue processor started successfully")
+    except Exception as e:
+        logger.error(f"Error starting EPD queue processor: {e}")
+
     # Initialize the EPD display
     try:
         logger.info("Initializing EPD display...")
@@ -93,6 +105,14 @@ async def startup_event():
 async def shutdown_event():
     """Cleanup on app shutdown"""
     logger.info("=== Shutting down Pixi server... ===")
+
+    # Stop the EPD queue processor
+    try:
+        epd_processor = await get_epd_processor()
+        await epd_processor.stop()
+        logger.info("EPD queue processor stopped")
+    except Exception as e:
+        logger.error(f"Error stopping EPD queue processor: {e}")
 
     # Clear the pixi_images directory
     clear_pixi_images_directory()
@@ -137,58 +157,51 @@ async def receive_pixi_image(request: PixiImageRequest):
         image.save(filepath)
         logger.info(f"Saved Pixi image: {filename}")
 
-        # Call the EPD updater script
+        # Add the image update to the EPD queue
         try:
-            cmd = ["python3", "epd_updater.py", filepath]
-            if previous_image_filename:
-                previous_filepath = os.path.join(OUTPUT_DIR, previous_image_filename)
-                cmd.append(previous_filepath)
-                logger.info(
-                    f"Calling EPD updater with new: {filename}, previous: {previous_image_filename}"
-                )
-            else:
-                logger.info(f"Calling EPD updater with first image: {filename}")
+            epd_processor = await get_epd_processor()
+            success = await epd_processor.add_update(filepath)
 
-            # Run the subprocess with real-time output
-            logger.info("Starting EPD updater...")
-            result = subprocess.run(cmd, cwd=os.getcwd())
-
-            if result.returncode == 0:
-                logger.info("EPD updater completed successfully")
+            if success:
+                logger.info(f"Added image to EPD queue: {filename}")
+                # Update the previous image filename
+                previous_image_filename = filename
                 epd_updated = True
             else:
-                logger.error(f"EPD updater failed with return code {result.returncode}")
+                logger.error(f"Failed to add image to EPD queue: {filename}")
                 epd_updated = False
 
         except Exception as e:
-            logger.error(f"Error calling EPD updater: {e}")
+            logger.error(f"Error adding image to EPD queue: {e}")
             epd_updated = False
 
-        # Update the previous image filename
-        previous_image_filename = filename
-
+        # Return success response
         return {
             "status": "success",
-            "filename": filename,
+            "message": f"Image {filename} received and queued for EPD update",
             "epd_updated": epd_updated,
-            "previous_image": previous_image_filename,
+            "filename": filename,
         }
 
     except Exception as e:
-        logger.error(f"Error processing Pixi image: {e}")
-        raise HTTPException(
-            status_code=400, detail=f"Failed to process image: {str(e)}"
-        )
+        logger.error(f"Error processing image request: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/epd-status")
-async def get_epd_status():
-    """Get e-paper display status"""
-    return {
-        "status": "running",
-        "previous_image": previous_image_filename,
-        "output_directory": OUTPUT_DIR,
-    }
+@app.get("/status")
+async def get_status():
+    """Get the current status of the EPD queue processor"""
+    try:
+        epd_processor = await get_epd_processor()
+        status = await epd_processor.get_queue_status()
+        return {
+            "status": "success",
+            "epd_queue": status,
+            "previous_image": previous_image_filename,
+        }
+    except Exception as e:
+        logger.error(f"Error getting status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":
